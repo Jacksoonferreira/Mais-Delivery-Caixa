@@ -853,9 +853,10 @@ async function salvarComplemento(id){
 
 async function reabrirEntregador(id,nome){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
-  if(!confirm(`Reabrir ${nome}? O horário de fechamento será removido.`))return;
-  const{error}=await sb.from('entregadores_turno').update({hora_fechamento:null,chuva:false,obs:'',status:'aberto'}).eq('id',id);
-  if(error){toast('Erro ao reabrir.','erro');return;}
+  if(!confirm(`Desfazer encerramento de ${nome}?`))return;
+  const{error}=await sb.from('entregadores_turno').update({hora_fechamento:null,chuva:false,obs:'',status:'aberto',data_fechamento:null}).eq('id',id);
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  registrarLog(`Desfez encerramento: ${nome}`);
   toast(`${nome} reaberto!`);renderCtrlEnt();
 }
 
@@ -882,14 +883,20 @@ async function confirmarFecharEnt(){
   const hora=nowTimeShort();
   const btn=document.querySelector('#modal-fechar-ent .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='Encerrando...';}
-  const{data,error}=await sb.from('entregadores_turno')
+  // Primeiro verifica se o registro existe
+  const{data:check,error:checkErr}=await sb.from('entregadores_turno').select('id,entregador,operador').eq('id',entParaFechar).maybeSingle();
+  if(checkErr||!check){
+    if(btn){btn.disabled=false;btn.textContent='Encerrar';}
+    toast('Registro não encontrado. Tente novamente.','erro');
+    fecharModal('modal-fechar-ent');renderCtrlEnt();return;
+  }
+  const{error}=await sb.from('entregadores_turno')
     .update({hora_fechamento:hora,chuva,obs,status:'fechado',data_fechamento:todayStr()})
-    .eq('id',entParaFechar)
-    .select();
+    .eq('id',entParaFechar);
   if(btn){btn.disabled=false;btn.textContent='Encerrar';}
-  if(error){toast('Erro: '+error.message,'erro');return;}
-  registrarLog(`Encerrou entregador — ${entNomeParaFechar||'ID '+entParaFechar}`);
-  fecharModal('modal-fechar-ent');toast('Entregador encerrado!');renderCtrlEnt();
+  if(error){toast('Erro ao encerrar: '+error.message,'erro');return;}
+  registrarLog(`Encerrou entregador: ${check.entregador}`);
+  fecharModal('modal-fechar-ent');toast(`${check.entregador} encerrado!`);renderCtrlEnt();
 }
 
 
