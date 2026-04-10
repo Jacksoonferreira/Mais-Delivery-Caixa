@@ -1,92 +1,9 @@
-const CACHE_NAME = 'mais-delivery-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/icon-192.png',
-  '/icon-512.png',
-  'https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'
-];
-
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      // Cache only local assets — external CDNs são opcionais
-      return cache.addAll(['/', '/index.html', '/icon-192.png', '/icon-512.png'])
-        .catch(() => {});
-    })
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', e => {
-  // Deixa requests do Supabase sempre ir para a rede
-  if (e.request.url.includes('supabase.co')) {
-    return;
-  }
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(response => {
-        // Cacheia apenas requests bem-sucedidos de recursos locais
-        if (response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-    })
-  );
-});
-
-{
-  "name": "Mais Delivery — Gestão Operacional",
-  "short_name": "Mais Delivery",
-  "description": "Sistema de gestão operacional Mais Delivery Palmeiras",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#f5f4f0",
-  "theme_color": "#e8451e",
-  "orientation": "portrait-primary",
-  "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "categories": ["business", "productivity"]
-}
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mais Delivery — Gestão Operacional</title>
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Mais Delivery">
-<meta name="theme-color" content="#e8451e">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1496,33 +1413,6 @@ sb.channel('md-rt')
   .subscribe();
 
 loadSession();
-
-// Registra o Service Worker para PWA
-if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('/sw.js')
-      .then(()=>console.log('SW registrado'))
-      .catch(e=>console.log('SW erro:', e));
-  });
-}
 </script>
 </body>
 </html>
-
-{
-  "headers": [
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
-      ]
-    },
-    {
-      "source": "/manifest.json",
-      "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" }
-      ]
-    }
-  ]
-}
