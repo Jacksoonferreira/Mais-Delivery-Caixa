@@ -885,20 +885,26 @@ async function confirmarFecharEnt(){
   const hora=nowTimeShort();
   const btn=document.querySelector('#modal-fechar-ent .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='Encerrando...';}
-  // Primeiro verifica se o registro existe
-  const{data:check,error:checkErr}=await sb.from('entregadores_turno').select('id,entregador,operador').eq('id',entParaFechar).maybeSingle();
-  if(checkErr||!check){
+  // Busca direto pelo nome do entregador — evita problema de id desatualizado
+  const{data:registros,error:buscarErr}=await sb.from('entregadores_turno')
+    .select('id,entregador')
+    .eq('entregador',entNomeParaFechar)
+    .eq('status','aberto')
+    .order('id',{ascending:false});
+  if(buscarErr||!registros||!registros.length){
     if(btn){btn.disabled=false;btn.textContent='Encerrar';}
-    toast('Registro não encontrado. Tente novamente.','erro');
+    toast('Registro não encontrado.','erro');
     fecharModal('modal-fechar-ent');renderCtrlEnt();return;
   }
+  // Fecha TODOS os registros abertos deste entregador (resolve duplicatas)
+  const ids=registros.map(r=>r.id);
   const{error}=await sb.from('entregadores_turno')
     .update({hora_fechamento:hora,chuva,obs,status:'fechado',data_fechamento:todayStr()})
-    .eq('id',entParaFechar);
+    .in('id',ids);
   if(btn){btn.disabled=false;btn.textContent='Encerrar';}
-  if(error){toast('Erro ao encerrar: '+error.message,'erro');return;}
-  registrarLog(`Encerrou entregador: ${check.entregador}`);
-  fecharModal('modal-fechar-ent');toast(`${check.entregador} encerrado!`);renderCtrlEnt();
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  registrarLog(`Encerrou entregador: ${entNomeParaFechar}`);
+  fecharModal('modal-fechar-ent');toast(`${entNomeParaFechar} encerrado!`);renderCtrlEnt();
 }
 
 
