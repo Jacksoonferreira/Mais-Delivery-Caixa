@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mais Delivery — Gestão Operacional</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mais Delivery">
+<meta name="theme-color" content="#e8451e">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -418,6 +424,82 @@ tr:hover td{background:#fafaf8;}
       </div>
     </div>
 
+
+    <!-- HISTÓRICO POR ENTREGADOR -->
+    <div id="sec-historico" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Histórico por entregador</div>
+      </div>
+      <div class="card">
+        <div class="row2">
+          <div class="field">
+            <label>Entregador</label>
+            <select id="hist-entregador" onchange="renderHistorico()"><option value="">Selecione...</option></select>
+          </div>
+          <div class="row2" style="gap:8px;">
+            <div class="field"><label>De</label><input type="date" id="hist-de" onchange="renderHistorico()"></div>
+            <div class="field"><label>Até</label><input type="date" id="hist-ate" onchange="renderHistorico()"></div>
+          </div>
+        </div>
+      </div>
+      <div id="hist-resumo"></div>
+      <div id="hist-lista"></div>
+    </div>
+
+    <!-- REPASSE DE ESTABELECIMENTOS -->
+    <div id="sec-repasse" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Repasse de estabelecimentos</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="date" class="date-input" id="rep-de" onchange="renderRepasse()">
+          <span style="font-size:12px;color:var(--text2)">até</span>
+          <input type="date" class="date-input" id="rep-ate" onchange="renderRepasse()">
+        </div>
+      </div>
+      <div class="aviso">Consolida todos os registros de <strong>Não pagou estabelecimento</strong> por estabelecimento para facilitar o desconto no repasse semanal.</div>
+      <div id="rep-resumo"></div>
+      <div id="rep-lista"></div>
+    </div>
+
+    <!-- RELATÓRIO SEMANAL/MENSAL -->
+    <div id="sec-relatorio" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Relatório</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select class="date-input" id="rel-periodo" onchange="renderRelatorio()">
+            <option value="7">Últimos 7 dias</option>
+            <option value="15">Últimos 15 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="custom">Período personalizado</option>
+          </select>
+          <div id="rel-custom" style="display:none;gap:8px;align-items:center;">
+            <input type="date" class="date-input" id="rel-de">
+            <span style="font-size:12px;color:var(--text2)">até</span>
+            <input type="date" class="date-input" id="rel-ate">
+            <button class="btn btn-sm btn-primary" onclick="renderRelatorio()">Filtrar</button>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="exportarRelatorioExcel()">Excel</button>
+        </div>
+      </div>
+      <div id="rel-conteudo"></div>
+    </div>
+
+    <!-- LOG DE AÇÕES -->
+    <div id="sec-log" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Log de ações</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" class="date-input" id="log-data" onchange="renderLog()">
+          <select class="date-input" id="log-usuario" onchange="renderLog()" style="padding:7px 12px;">
+            <option value="">Todos os usuários</option>
+            <option>Jackson</option><option>Lucas</option><option>Luan</option>
+            <option>Amanda</option><option>Leonardo</option>
+          </select>
+        </div>
+      </div>
+      <div id="log-lista"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+    </div>
+
   </main>
 </div>
 
@@ -518,6 +600,12 @@ function buildNav(){
     h+=`<button class="tab" onclick="showTab('pf-cart',this)">Pedidos fora (cartão)</button>`;
   }
   if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Cadastro</button>`;
+  if(isAdmin()){
+    h+=`<button class="tab" onclick="showTab('historico',this)">Histórico</button>`;
+    h+=`<button class="tab" onclick="showTab('repasse',this)">Repasse</button>`;
+    h+=`<button class="tab" onclick="showTab('relatorio',this)">Relatório</button>`;
+    h+=`<button class="tab" onclick="showTab('log',this)">Log</button>`;
+  }
   nav.innerHTML=h;
 }
 
@@ -536,6 +624,7 @@ async function mostrarApp(){
   document.getElementById('fc-data').value=todayStr();
   document.getElementById('pfc-data').value=todayStr();
   document.getElementById('dash-data').value=todayStr();
+  document.getElementById('log-data').value=todayStr();
   buildNav();
   const tick=()=>{
     document.getElementById('header-clock').textContent=brDate().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+' • '+nowTimeFull();
@@ -573,6 +662,10 @@ function showTab(name,btn){
   if(name==='fechamento')renderFechamento();
   if(name==='pf-cart')renderPfCart();
   if(name==='entregadores')renderEntregadores();
+  if(name==='historico')renderHistorico();
+  if(name==='repasse')renderRepasse();
+  if(name==='relatorio')renderRelatorio();
+  if(name==='log')renderLog();
   if(name==='lancar')atualizarBloqueioLancar();
 }
 
@@ -734,6 +827,7 @@ async function confirmarAbrirEnt(){
   const operador=isAdmin()?currentUser.nome:(meuTurnoAtual?.operador||currentUser.nome);
   const{error}=await sb.from('entregadores_turno').insert({data:todayStr(),entregador:ent,operador,hora_abertura:hora,bag,maquina,valor_abertura:valor,complemento,status:'aberto'});
   if(error){toast('Erro: '+error.message,'erro');return;}
+  registrarLog(`Abriu entregador: ${ent} — Bag: ${bag||'—'} — Máq: ${maquina||'—'}`);
   fecharModal('modal-abrir-ent');toast(`${ent} aberto!`);renderCtrlEnt();
   if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
 }
@@ -786,6 +880,7 @@ async function confirmarFecharEnt(){
   const hora=nowTimeShort();
   const{error}=await sb.from('entregadores_turno').update({hora_fechamento:hora,chuva,obs,status:'fechado'}).eq('id',entParaFechar);
   if(error){toast('Erro ao encerrar.','erro');return;}
+  registrarLog(`Encerrou entregador — ID ${entParaFechar}`);
   fecharModal('modal-fechar-ent');toast('Entregador encerrado!');renderCtrlEnt();
 }
 
@@ -1007,6 +1102,7 @@ async function lancar(){
   document.getElementById('f-entregador').value='';
   ['f-pedido','f-estab','f-valor','f-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-tipo').value='';document.getElementById('f-dica').style.display='none';
+  registrarLog(`Lançou ocorrência: ${tipoLabel(tipo)} — ${ent} — ${fmt(val)}`);
   toast('Ocorrência registrada!');renderLista();
   if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
 }
@@ -1015,6 +1111,7 @@ async function remover(id){
   if(!isAdmin()){toast('Apenas administradores podem apagar.','erro');return;}
   if(!confirm('Remover esta ocorrência?'))return;
   await sb.from('ocorrencias').delete().eq('id',id);
+  registrarLog(`Removeu ocorrência ID ${id}`);
   toast('Removida.');renderLista();
   if(document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
 }
@@ -1116,6 +1213,7 @@ async function abrirTurno(){
   const{error}=await sb.from('turnos').insert({data,operador:currentUser.nome,hora_abertura:hora,valor_abertura:val,status:'aberto'});
   btn.disabled=false;
   if(error){toast('Erro: '+error.message,'erro');btn.textContent='Abrir turno agora';return;}
+  registrarLog(`Abriu turno — R$ ${val.toFixed(2)}`);
   toast('Turno aberto!');
   await carregarMeuTurno();
   renderMeuTurno();
@@ -1128,6 +1226,7 @@ async function fecharTurno(id){
   if(isNaN(val)||val<0){toast('Informe o valor de fechamento.','erro');return;}
   const{error}=await sb.from('turnos').update({hora_fechamento:nowTimeShort(),valor_fechamento:val,status:'fechado'}).eq('id',id);
   if(error){toast('Erro ao fechar.','erro');return;}
+  registrarLog(`Encerrou turno — R$ ${val.toFixed(2)}`);
   toast('Turno encerrado!');
   meuTurnoAtual=null;
   atualizarPillTurno();
@@ -1387,6 +1486,302 @@ async function exportarPDF(){
   doc.save(`MaisDelivery_${filtro}.pdf`);toast('PDF exportado!');
 }
 
+
+// ═══════════════════════════════════════════
+// LOG DE AÇÕES
+// ═══════════════════════════════════════════
+async function registrarLog(acao, detalhe=''){
+  if(!currentUser)return;
+  try{
+    await sb.from('log_acoes').insert({
+      usuario:currentUser.nome,
+      acao,
+      detalhe,
+      data:todayStr()
+    });
+  }catch(e){}
+}
+
+async function renderLog(){
+  const el=document.getElementById('log-lista');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  const filtroData=document.getElementById('log-data').value||todayStr();
+  const filtroUser=document.getElementById('log-usuario').value;
+  let q=sb.from('log_acoes').select('*').eq('data',filtroData).order('created_at',{ascending:false});
+  if(filtroUser)q=q.eq('usuario',filtroUser);
+  const{data,error}=await q;
+  if(error||!data||!data.length){el.innerHTML='<div class="empty">Nenhuma ação registrada para este filtro.</div>';return;}
+  const userCores={'Jackson':'var(--accent)','Lucas':'var(--blue)','Luan':'var(--green)','Amanda':'var(--purple)','Leonardo':'var(--teal)','Sistema':'var(--text3)'};
+  el.innerHTML=`<div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>Hora</th><th>Usuário</th><th>Ação</th></tr></thead>
+    <tbody>${data.map(l=>{
+      const hora=new Date(l.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'America/Sao_Paulo'});
+      const cor=userCores[l.usuario]||'var(--text2)';
+      return `<tr>
+        <td class="mono" style="color:var(--text2);white-space:nowrap">${hora}</td>
+        <td><span style="font-weight:600;color:${cor}">${l.usuario}</span></td>
+        <td style="font-size:13px">${l.acao}${l.detalhe?` <span style="color:var(--text3);font-size:11px">— ${l.detalhe}</span>`:''}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div></div>`;
+}
+
+// ═══════════════════════════════════════════
+// HISTÓRICO POR ENTREGADOR
+// ═══════════════════════════════════════════
+async function initHistorico(){
+  const sel=document.getElementById('hist-entregador');
+  if(sel.options.length>1)return;
+  const{data}=await sb.from('entregadores').select('nome').eq('ativo',true).order('nome');
+  sel.innerHTML='<option value="">Selecione o entregador...</option>'+(data||[]).map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
+  // default dates: last 30 days
+  const ate=todayStr();
+  const de=new Date(brDate());de.setDate(de.getDate()-30);
+  const deStr=`${de.getFullYear()}-${String(de.getMonth()+1).padStart(2,'0')}-${String(de.getDate()).padStart(2,'0')}`;
+  document.getElementById('hist-de').value=deStr;
+  document.getElementById('hist-ate').value=ate;
+}
+
+async function renderHistorico(){
+  await initHistorico();
+  const ent=document.getElementById('hist-entregador').value;
+  const de=document.getElementById('hist-de').value;
+  const ate=document.getElementById('hist-ate').value;
+  const resumoEl=document.getElementById('hist-resumo');
+  const listaEl=document.getElementById('hist-lista');
+  if(!ent){resumoEl.innerHTML='';listaEl.innerHTML='<div class="empty">Selecione um entregador para ver o histórico.</div>';return;}
+  resumoEl.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  listaEl.innerHTML='';
+  // Busca turnos do entregador
+  let q=sb.from('entregadores_turno').select('*').eq('entregador',ent).order('data',{ascending:false});
+  if(de)q=q.gte('data',de);
+  if(ate)q=q.lte('data',ate);
+  const{data:turnos}=await q;
+  // Busca ocorrências do entregador
+  let q2=sb.from('ocorrencias').select('*').eq('entregador',ent).order('data',{ascending:false});
+  if(de)q2=q2.gte('data',de);
+  if(ate)q2=q2.lte('data',ate);
+  const{data:ocs}=await q2;
+  const turnosList=turnos||[];
+  const ocsList=ocs||[];
+  const totalDias=turnosList.length;
+  const totalDebita=ocsList.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalOcs=ocsList.length;
+  const diasChuva=turnosList.filter(t=>t.chuva).length;
+  resumoEl.innerHTML=`
+    <div class="metrics4" style="margin-bottom:1rem;">
+      <div class="metric"><div class="metric-val blue">${totalDias}</div><div class="metric-lbl">Dias trabalhados</div></div>
+      <div class="metric"><div class="metric-val red">${fmt(totalDebita)}</div><div class="metric-lbl">Total débitos</div></div>
+      <div class="metric"><div class="metric-val purple">${totalOcs}</div><div class="metric-lbl">Ocorrências</div></div>
+      <div class="metric"><div class="metric-val indigo">${diasChuva}</div><div class="metric-lbl">Dias na chuva</div></div>
+    </div>`;
+  if(!turnosList.length){listaEl.innerHTML='<div class="empty">Nenhum registro encontrado para este período.</div>';return;}
+  // Agrupa ocorrências por data
+  const ocsPorData={};
+  ocsList.forEach(o=>{if(!ocsPorData[o.data])ocsPorData[o.data]=[];ocsPorData[o.data].push(o);});
+  listaEl.innerHTML=turnosList.map(t=>{
+    const ocsData=ocsPorData[t.data]||[];
+    const deb=ocsData.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+    return `<div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-weight:600;font-size:15px;">${fmtDate(t.data)}</span>
+          ${t.chuva?'<span class="badge" style="background:#dbeafe;color:#1d4ed8">🌧️ Chuva</span>':''}
+          <span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em rota':'Encerrado'}</span>
+        </div>
+        <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)">${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}</span>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:${ocsData.length?'10px':'0'};">
+        ${t.bag?`<span>🎒 Bag ${t.bag}</span>`:''}
+        ${t.maquina?`<span>💳 ${t.maquina}</span>`:''}
+        ${parseFloat(t.complemento||0)>0?`<span>+${fmt(t.complemento)} complemento</span>`:''}
+        ${deb>0?`<span style="color:var(--red);font-weight:600">-${fmt(deb)} em débitos</span>`:'<span style="color:var(--green)">Sem débitos</span>'}
+        ${t.obs?`<span>📝 ${t.obs}</span>`:''}
+      </div>
+      ${ocsData.length?`<div class="table-wrap"><table>
+        <thead><tr><th>Hora</th><th>Pedido</th><th>Estabelecimento</th><th>Tipo</th><th>Valor</th></tr></thead>
+        <tbody>${ocsData.map(o=>`<tr>
+          <td class="mono">${o.hora||'—'}</td>
+          <td class="mono">${o.pedido}</td>
+          <td>${o.estabelecimento}</td>
+          <td>${badgeHtml(o.tipo)}</td>
+          <td class="mono">${fmt(o.valor)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// REPASSE DE ESTABELECIMENTOS
+// ═══════════════════════════════════════════
+async function renderRepasse(){
+  // Default: últimos 7 dias
+  const ate=document.getElementById('rep-ate').value||todayStr();
+  if(!document.getElementById('rep-de').value){
+    const d=new Date(brDate());d.setDate(d.getDate()-7);
+    document.getElementById('rep-de').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  const de=document.getElementById('rep-de').value;
+  if(!document.getElementById('rep-ate').value) document.getElementById('rep-ate').value=ate;
+  const resumoEl=document.getElementById('rep-resumo');
+  const listaEl=document.getElementById('rep-lista');
+  resumoEl.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  listaEl.innerHTML='';
+  // Busca ocorrências de não pagou estabelecimento no período
+  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('tipo','nao-pagou').gte('data',de).lte('data',ate).order('estabelecimento').order('data');
+  const lista=ocs||[];
+  const total=lista.reduce((s,o)=>s+parseFloat(o.valor),0);
+  // Agrupa por estabelecimento
+  const porEstab={};
+  lista.forEach(o=>{
+    if(!porEstab[o.estabelecimento])porEstab[o.estabelecimento]={total:0,registros:[]};
+    porEstab[o.estabelecimento].total+=parseFloat(o.valor);
+    porEstab[o.estabelecimento].registros.push(o);
+  });
+  const sorted=Object.entries(porEstab).sort((a,b)=>b[1].total-a[1].total);
+  resumoEl.innerHTML=`
+    <div class="metrics3" style="margin-bottom:1rem;">
+      <div class="metric"><div class="metric-val red">${fmt(total)}</div><div class="metric-lbl">Total a repassar</div></div>
+      <div class="metric"><div class="metric-val blue">${sorted.length}</div><div class="metric-lbl">Estabelecimentos</div></div>
+      <div class="metric"><div class="metric-val amber">${lista.length}</div><div class="metric-lbl">Registros</div></div>
+    </div>`;
+  if(!sorted.length){listaEl.innerHTML='<div class="empty">Nenhum registro de "não pagou estabelecimento" neste período.</div>';return;}
+  listaEl.innerHTML=sorted.map(([estab,dados])=>`
+    <div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-weight:600;font-size:15px;">${estab}</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:600;font-size:18px;color:var(--red);">${fmt(dados.total)}</span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Data</th><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Valor</th><th>Obs.</th></tr></thead>
+        <tbody>${dados.registros.map(o=>`<tr>
+          <td class="mono">${fmtDate(o.data)}</td>
+          <td class="mono">${o.hora||'—'}</td>
+          <td style="font-weight:500">${o.entregador}</td>
+          <td class="mono">${o.pedido}</td>
+          <td class="mono" style="color:var(--red);font-weight:600">${fmt(o.valor)}</td>
+          <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// RELATÓRIO SEMANAL / MENSAL
+// ═══════════════════════════════════════════
+async function renderRelatorio(){
+  const periodo=document.getElementById('rel-periodo').value;
+  const customDiv=document.getElementById('rel-custom');
+  customDiv.style.display=periodo==='custom'?'flex':'none';
+  let de,ate=todayStr();
+  if(periodo==='custom'){
+    de=document.getElementById('rel-de').value;
+    ate=document.getElementById('rel-ate').value||todayStr();
+    if(!de)return;
+  } else {
+    const d=new Date(brDate());d.setDate(d.getDate()-parseInt(periodo));
+    de=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  const el=document.getElementById('rel-conteudo');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  const{data:ocs}=await sb.from('ocorrencias').select('*').gte('data',de).lte('data',ate).order('data');
+  const{data:dias}=await sb.from('caixa_dia').select('*').gte('data',de).lte('data',ate).order('data');
+  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').gte('data',de).lte('data',ate).order('data');
+  const lista=ocs||[];
+  const diasList=dias||[];
+  const entList=entTurnos||[];
+  // Totais gerais
+  const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalPfDin=lista.filter(o=>o.tipo==='pf-din').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalPfCart=lista.filter(o=>o.tipo==='pf-cart').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalStTroco=lista.filter(o=>o.tipo==='sem-troco').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalNaoPagou=lista.filter(o=>o.tipo==='nao-pagou').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalCartDin=lista.filter(o=>o.tipo==='cart-din').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const diasComMovimento=[...new Set(lista.map(o=>o.data))].length;
+  const totalEntregadores=[...new Set(entList.map(t=>t.entregador))].length;
+  const diasChuva=entList.filter(t=>t.chuva).length;
+  // Ranking entregadores por débito
+  const rankEnt={};
+  lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{rankEnt[o.entregador]=(rankEnt[o.entregador]||0)+parseFloat(o.valor);});
+  const rankSorted=Object.entries(rankEnt).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  // Agrupamento por dia
+  const porDia={};
+  lista.forEach(o=>{
+    if(!porDia[o.data])porDia[o.data]={debita:0,ocs:0};
+    if(DEBITA.includes(o.tipo))porDia[o.data].debita+=parseFloat(o.valor);
+    porDia[o.data].ocs++;
+  });
+  diasList.forEach(d=>{if(!porDia[d.data])porDia[d.data]={debita:0,ocs:0};});
+
+  el.innerHTML=`
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-title">Resumo do período — ${fmtDate(de)} a ${fmtDate(ate)}</div>
+      <div class="metrics4" style="margin-bottom:1rem;">
+        <div class="metric"><div class="metric-val red">${fmt(totalDebita)}</div><div class="metric-lbl">Total débitos</div></div>
+        <div class="metric"><div class="metric-val blue">${diasComMovimento}</div><div class="metric-lbl">Dias com movimento</div></div>
+        <div class="metric"><div class="metric-val green">${totalEntregadores}</div><div class="metric-lbl">Entregadores únicos</div></div>
+        <div class="metric"><div class="metric-val indigo">${lista.length}</div><div class="metric-lbl">Ocorrências totais</div></div>
+      </div>
+      <div class="admin-grid-4" style="margin-bottom:0;">
+        <div class="admin-metric"><div class="admin-metric-val">${fmt(totalPfDin)}</div><div class="admin-metric-lbl">Pedido fora (din.)</div></div>
+        <div class="admin-metric"><div class="admin-metric-val">${fmt(totalPfCart)}</div><div class="admin-metric-lbl">Pedido fora (cart.)</div></div>
+        <div class="admin-metric"><div class="admin-metric-val">${fmt(totalStTroco)}</div><div class="admin-metric-lbl">Estab. sem troco</div></div>
+        <div class="admin-metric"><div class="admin-metric-val">${fmt(totalNaoPagou)}</div><div class="admin-metric-lbl">Não pagou estab.</div></div>
+      </div>
+    </div>
+    ${rankSorted.length?`<div class="card" style="margin-bottom:1rem;">
+      <div class="card-title">Top 5 entregadores com mais débitos</div>
+      ${rankSorted.map(([nome,val],i)=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:'DM Mono',monospace;color:var(--text3);font-size:12px;">${i+1}º</span>
+            <span style="font-weight:500">${nome}</span>
+          </span>
+          <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--red);">${fmt(val)}</span>
+        </div>`).join('')}
+    </div>`:''}
+    <div class="card">
+      <div class="card-title">Detalhamento por dia</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Data</th><th>Débitos</th><th>Ocorrências</th><th>Caixa inicial</th><th>Caixa final</th><th>Diferença</th></tr></thead>
+        <tbody>${Object.entries(porDia).sort((a,b)=>b[0].localeCompare(a[0])).map(([data,d])=>{
+          const diaInfo=diasList.find(x=>x.data===data);
+          const ini=diaInfo?.valor_inicial!=null?parseFloat(diaInfo.valor_inicial):null;
+          const fin=diaInfo?.valor_final!=null?parseFloat(diaInfo.valor_final):null;
+          const esp=ini!=null?ini-d.debita:null;
+          const dif=esp!=null&&fin!=null?fin-esp:null;
+          return `<tr>
+            <td class="mono">${fmtDate(data)}</td>
+            <td class="mono" style="color:${d.debita>0?'var(--red)':'var(--text3)'}">${d.debita>0?'-'+fmt(d.debita):'R$ 0,00'}</td>
+            <td class="mono">${d.ocs}</td>
+            <td class="mono">${ini!=null?fmt(ini):'—'}</td>
+            <td class="mono">${fin!=null?fmt(fin):'—'}</td>
+            <td class="mono" style="color:${dif==null?'var(--text3)':dif>=0?'var(--green)':'var(--red)'};font-weight:600">${dif==null?'—':(dif>=0?'+':'')+dif.toFixed(2).replace('.',',')}</td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+}
+
+async function exportarRelatorioExcel(){
+  const periodo=document.getElementById('rel-periodo').value;
+  let de,ate=todayStr();
+  if(periodo==='custom'){de=document.getElementById('rel-de').value;ate=document.getElementById('rel-ate').value||todayStr();}
+  else{const d=new Date(brDate());d.setDate(d.getDate()-parseInt(periodo));de=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+  if(!de){toast('Selecione o período.','erro');return;}
+  const{data:ocs}=await sb.from('ocorrencias').select('*').gte('data',de).lte('data',ate).order('data').order('created_at');
+  const wb=XLSX.utils.book_new();
+  const rows=[['Data','Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Registrado por','Obs.']];
+  (ocs||[]).forEach(o=>{
+    const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':SEPARADOS.includes(o.tipo)?'Separado':'—';
+    rows.push([fmtDate(o.data),o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),imp,o.registrado_por||'',o.obs||'']);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Ocorrências');
+  XLSX.writeFile(wb,`Relatorio_${de}_${ate}.xlsx`);
+  toast('Excel exportado!');
+}
+
 // TEMPO REAL
 sb.channel('md-rt')
   .on('postgres_changes',{event:'*',schema:'public',table:'ocorrencias'},()=>{
@@ -1413,6 +1808,15 @@ sb.channel('md-rt')
   .subscribe();
 
 loadSession();
+
+// Registra o Service Worker para PWA
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js')
+      .then(()=>console.log('SW registrado'))
+      .catch(e=>console.log('SW erro:', e));
+  });
+}
 </script>
 </body>
 </html>
