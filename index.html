@@ -225,6 +225,7 @@ tr:hover td{background:#fafaf8;}
         </div>
       </div>
       <div class="dash-grid" id="dash-grid"></div>
+      <div id="dash-split" style="margin-bottom:1rem;"></div>
       <div class="row2" style="margin-bottom:1rem;">
         <div class="card">
           <div class="card-title">Débitos por entregador</div>
@@ -362,6 +363,7 @@ tr:hover td{background:#fafaf8;}
         </div>
         <div class="resumo-linhas" id="resumo-total"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
       </div>
+      <div id="split-caixa-ent" style="margin-bottom:1rem;"></div>
       <div class="admin-only">
         <div class="admin-only-header">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -607,17 +609,42 @@ function atualizarBloqueioCtrl(){
 
 // CONTROLE DE ENTREGADORES
 let entregadoresList=[];
+async function abrirAutomaticos(){
+  // Abre entregadores fixos automaticamente após 07:00
+  const hora=brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if(hora<'07:00')return;
+  const{data:fixos}=await sb.from('entregadores').select('*').eq('ativo',true).eq('abertura_automatica',true);
+  if(!fixos||!fixos.length)return;
+  for(const ent of fixos){
+    // Verifica se já está aberto (sem data filter - persiste entre dias)
+    const{data:jaAberto}=await sb.from('entregadores_turno').select('id').eq('entregador',ent.nome).eq('status','aberto').maybeSingle();
+    if(!jaAberto){
+      // Abre automaticamente às 07:00
+      await sb.from('entregadores_turno').insert({
+        data:todayStr(),entregador:ent.nome,operador:'Sistema',
+        hora_abertura:'07:00',bag:ent.bag||'',maquina:ent.maquina_fixa||'',
+        valor_abertura:100,complemento:0,status:'aberto'
+      });
+    }
+  }
+}
+
 async function renderCtrlEnt(){
   document.getElementById('ctrl-date-label').textContent=fmtDate(todayStr());
   atualizarBloqueioCtrl();
   if(!podeAgir())return;
   const el=document.getElementById('ent-grid');
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
-  const{data:ents}=await sb.from('entregadores').select('nome,bag').eq('ativo',true).order('nome');
-  const{data:turnos}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).order('hora_abertura');
+  // Abre automáticos antes de renderizar
+  await abrirAutomaticos();
+  const{data:ents}=await sb.from('entregadores').select('nome,bag,maquina_fixa,abertura_automatica').eq('ativo',true).order('nome');
+  // Busca todos abertos (sem filtro de data — persiste entre dias) + fechados de hoje
+  const{data:abertos}=await sb.from('entregadores_turno').select('*').eq('status','aberto').order('hora_abertura');
+  const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).eq('status','fechado').order('hora_abertura');
   entregadoresList=ents||[];
   const turnosMap={};
-  (turnos||[]).forEach(t=>turnosMap[t.entregador]=t);
+  (abertos||[]).forEach(t=>turnosMap[t.entregador]=t);
+  (fechadosHoje||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   if(!entregadoresList.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
   renderEntGrid(turnosMap);
 }
@@ -664,7 +691,7 @@ function renderEntGrid(turnosMap){
         </div>`:''}
         `:`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Ainda não entrou hoje.</div>`}
         <div class="ent-actions">
-          ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
+          ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}','${(e.maquina_fixa||'').replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
           ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}')">■ Encerrar</button>`:''}
           ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-amber" onclick="reabrirEntregador(${t.id},'${e.nome.replace(/'/g,"\\'")}')">↺ Reabrir</button>`:''}
           ${(isAdmin()||canCad())?`<button class="btn btn-sm" onclick="editarBagCadastro('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
@@ -675,16 +702,19 @@ function renderEntGrid(turnosMap){
 }
 
 async function filtrarEntregadores(){
-  const{data:turnos}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).order('hora_abertura');
-  const turnosMap={};(turnos||[]).forEach(t=>turnosMap[t.entregador]=t);
+  const{data:abertos}=await sb.from('entregadores_turno').select('*').eq('status','aberto').order('hora_abertura');
+  const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).eq('status','fechado').order('hora_abertura');
+  const turnosMap={};
+  (abertos||[]).forEach(t=>turnosMap[t.entregador]=t);
+  (fechadosHoje||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   renderEntGrid(turnosMap);
 }
 
 function abrirModalAdicionar(){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   const sel=document.getElementById('m-entregador');
-  sel.innerHTML='<option value="">Selecione...</option>'+entregadoresList.map(e=>`<option value="${e.nome}" data-bag="${e.bag||''}">${e.nome}</option>`).join('');
-  sel.onchange=()=>{const opt=sel.options[sel.selectedIndex];document.getElementById('m-bag').value=opt.dataset.bag||'';};
+  sel.innerHTML='<option value="">Selecione...</option>'+entregadoresList.map(e=>`<option value="${e.nome}" data-bag="${e.bag||''}" data-maquina="${e.maquina_fixa||''}">${e.nome}</option>`).join('');
+  sel.onchange=()=>{const opt=sel.options[sel.selectedIndex];document.getElementById('m-bag').value=opt.dataset.bag||'';document.getElementById('m-maquina').value=opt.dataset.maquina||'';};
   document.getElementById('m-bag').value='';
   document.getElementById('m-maquina').value='';
   document.getElementById('m-valor').value='100';
@@ -707,12 +737,12 @@ async function confirmarAbrirEnt(){
   if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
 }
 
-function abrirEntregador(nome,bagCadastro){
+function abrirEntregador(nome,bagCadastro,maquinaCadastro){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   const sel=document.getElementById('m-entregador');
-  sel.innerHTML=`<option value="${nome}">${nome}</option>`;
+  sel.innerHTML=`<option value="${nome}" data-bag="${bagCadastro||''}" data-maquina="${maquinaCadastro||''}">${nome}</option>`;
   document.getElementById('m-bag').value=bagCadastro||'';
-  document.getElementById('m-maquina').value='';
+  document.getElementById('m-maquina').value=maquinaCadastro||'';
   document.getElementById('m-valor').value='100';
   document.getElementById('m-complemento').value='0';
   document.getElementById('modal-abrir-ent').classList.add('open');
@@ -771,10 +801,10 @@ document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('cli
 
 // SELECT ENTREGADORES
 async function carregarEntregadoresSelect(){
-  const{data}=await sb.from('entregadores').select('nome,bag').eq('ativo',true).order('nome');
+  const{data}=await sb.from('entregadores').select('nome,bag,maquina_fixa').eq('ativo',true).order('nome');
   const sel=document.getElementById('f-entregador');
   if(!sel)return;
-  sel.innerHTML='<option value="">Selecione...</option>'+(data||[]).map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Selecione...</option>'+(data||[]).map(e=>`<option value="${e.nome}" data-bag="${e.bag||''}" data-maquina="${e.maquina_fixa||''}">${e.nome}</option>`).join('');
 }
 
 // CADASTRO
@@ -829,6 +859,13 @@ async function renderDashboard(){
   const emRota=(entTurnos||[]).filter(t=>t.status==='aberto').length;
   const totalEnc=(entTurnos||[]).filter(t=>t.status==='fechado').length;
 
+  // Busca entregadores abertos (persistente) para calcular dinheiro
+  const{data:entAbertos}=await sb.from('entregadores_turno').select('valor_abertura,complemento').eq('status','aberto');
+  const totalComEnt=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
+  const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
+  const totalNoCaixa=valorInicial!=null?valorInicial-totalComEnt:null;
+
   // CARDS
   document.getElementById('dash-grid').innerHTML=`
     <div class="dash-card" style="border-color:var(--accent)"><div class="dash-val" style="color:var(--accent)">${fmt(totalDebita)}</div><div class="dash-lbl">Total débitos</div></div>
@@ -836,7 +873,30 @@ async function renderDashboard(){
     <div class="dash-card" style="border-color:var(--blue)"><div class="dash-val" style="color:var(--blue)">${totalEnc}</div><div class="dash-lbl">Entregadores encerrados</div></div>
     <div class="dash-card" style="border-color:var(--purple)"><div class="dash-val" style="color:var(--purple)">${lista.length}</div><div class="dash-lbl">Ocorrências no dia</div></div>`;
 
-  // GRÁFICO 1: Débitos por entregador (barras horizontais)
+  // SPLIT CAIXA / ENTREGADORES
+  const splitEl=document.getElementById('dash-split')||createSplitEl();
+  splitEl.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">💰 No caixa</div>
+        <div style="font-size:26px;font-weight:600;font-family:'DM Mono',monospace;color:var(--blue);">${totalNoCaixa!=null?fmt(totalNoCaixa):'—'}</div>
+        <div style="font-size:11px;color:#1e40af;margin-top:4px;">${valorInicial!=null?'Inicial: '+fmt(valorInicial):'Configure o valor inicial no Fechamento'}</div>
+      </div>
+      <div style="background:var(--green-bg);border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🛵 Com entregadores</div>
+        <div style="font-size:26px;font-weight:600;font-family:'DM Mono',monospace;color:var(--green);">${fmt(totalComEnt)}</div>
+        <div style="font-size:11px;color:#166534;margin-top:4px;">${emRota} entregador${emRota!==1?'es':''} em rota</div>
+      </div>
+    </div>`;
+
+  function createSplitEl(){
+  const el=document.createElement('div');
+  el.id='dash-split';el.style.marginBottom='1rem';
+  document.getElementById('dash-split').replaceWith(el);
+  return el;
+}
+
+// GRÁFICO 1: Débitos por entregador (barras horizontais)
   const debitosEnt={};
   lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
     debitosEnt[o.entregador]=(debitosEnt[o.entregador]||0)+parseFloat(o.valor);
@@ -1118,6 +1178,23 @@ async function renderResumoTotal(){
     <div class="resumo-linha total-final"><span class="resumo-lbl"><strong>Diferença do dia</strong></span>
       <span class="resumo-val big ${difReal==null?'muted':difReal>=0?'green':'red'}">${difReal==null?'—':(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',',')}</span>
     </div>`;
+  // SPLIT CAIXA / COM ENTREGADORES
+  const{data:entAbertosRes}=await sb.from('entregadores_turno').select('valor_abertura,complemento').eq('status','aberto');
+  const totalComEntRes=(entAbertosRes||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalNoCaixaRes=inicial!=null?inicial-totalComEntRes:null;
+  const splitExist=document.getElementById('split-caixa-ent');
+  if(splitExist){splitExist.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;">
+      <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">💰 No caixa agora</div>
+        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--blue);">${totalNoCaixaRes!=null?fmt(totalNoCaixaRes):'—'}</div>
+      </div>
+      <div style="background:var(--green-bg);border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">🛵 Com entregadores</div>
+        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--green);">${fmt(totalComEntRes)}</div>
+      </div>
+    </div>`;}
+
   document.getElementById('admin-metrics').innerHTML=`
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totPfDin)}</div><div class="admin-metric-lbl">Pedido fora (din.)</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totStTroco)}</div><div class="admin-metric-lbl">Estab. sem troco</div></div>
