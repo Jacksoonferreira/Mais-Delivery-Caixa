@@ -988,7 +988,9 @@ async function renderDashboard(){
   (ocsHoje||[]).filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
     debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
   });
-  // Com entregadores = saída + complemento - débitos já registrados
+  // Total saído com entregadores (saída + complemento) — isso sai do caixa
+  const totalSaidoComEnt=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  // Com entregadores = saída + complemento - débitos (dinheiro real que está com eles)
   const totalComEnt=(entAbertos||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const debitos=debitosEntMap[t.entregador]||0;
@@ -996,7 +998,9 @@ async function renderDashboard(){
   },0);
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
-  const totalNoCaixa=valorInicial!=null?valorInicial-totalComEnt:null;
+  // Caixa = valor inicial - total saído com entregadores (os débitos ficam com o caixa, não voltam)
+  const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
+  const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt:null;
 
   // CARDS
   document.getElementById('dash-grid').innerHTML=`
@@ -1008,16 +1012,21 @@ async function renderDashboard(){
   // SPLIT CAIXA / ENTREGADORES
   const splitEl=document.getElementById('dash-split')||createSplitEl();
   splitEl.innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
       <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
         <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">💰 No caixa</div>
-        <div style="font-size:26px;font-weight:600;font-family:'DM Mono',monospace;color:var(--blue);">${totalNoCaixa!=null?fmt(totalNoCaixa):'—'}</div>
-        <div style="font-size:11px;color:#1e40af;margin-top:4px;">${valorInicial!=null?'Inicial: '+fmt(valorInicial):'Configure o valor inicial no Fechamento'}</div>
+        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--blue);">${totalNoCaixa!=null?fmt(totalNoCaixa):'—'}</div>
+        <div style="font-size:11px;color:#1e40af;margin-top:4px;">${valorInicial!=null?'Inicial: '+fmt(valorInicial):'Configure no Fechamento'}</div>
       </div>
       <div style="background:var(--green-bg);border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
         <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🛵 Com entregadores</div>
-        <div style="font-size:26px;font-weight:600;font-family:'DM Mono',monospace;color:var(--green);">${fmt(totalComEnt)}</div>
+        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--green);">${fmt(totalComEnt)}</div>
         <div style="font-size:11px;color:#166534;margin-top:4px;">${emRota} entregador${emRota!==1?'es':''} em rota</div>
+      </div>
+      <div style="background:var(--amber-bg);border:1px solid #fde68a;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🏦 Total geral</div>
+        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--amber);">${totalGeral!=null?fmt(totalGeral):'—'}</div>
+        <div style="font-size:11px;color:#92400e;margin-top:4px;">Caixa + entregadores</div>
       </div>
     </div>`;
 
@@ -1316,18 +1325,22 @@ async function renderResumoTotal(){
     </div>`;
   // SPLIT CAIXA / COM ENTREGADORES
   const{data:entAbertosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento').eq('status','aberto');
-  // Débitos dos entregadores em rota
   const debitosEntRes={};
   lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{debitosEntRes[o.entregador]=(debitosEntRes[o.entregador]||0)+parseFloat(o.valor);});
+  // Total saído = o que saiu do caixa
+  const totalSaidoRes=(entAbertosRes||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  // Com entregadores = saída - débitos (o que eles têm de fato)
   const totalComEntRes=(entAbertosRes||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const deb=debitosEntRes[t.entregador]||0;
     return s+Math.max(0,saida-deb);
   },0);
-  const totalNoCaixaRes=inicial!=null?inicial-totalComEntRes:null;
+  // Caixa = inicial - total saído (débitos não voltam pro caixa)
+  const totalNoCaixaRes=inicial!=null?inicial-totalSaidoRes:null;
+  const totalGeralRes=totalNoCaixaRes!=null?totalNoCaixaRes+totalComEntRes:null;
   const splitExist=document.getElementById('split-caixa-ent');
   if(splitExist){splitExist.innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1rem;">
       <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
         <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">💰 No caixa agora</div>
         <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--blue);">${totalNoCaixaRes!=null?fmt(totalNoCaixaRes):'—'}</div>
@@ -1335,6 +1348,10 @@ async function renderResumoTotal(){
       <div style="background:var(--green-bg);border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
         <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">🛵 Com entregadores</div>
         <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--green);">${fmt(totalComEntRes)}</div>
+      </div>
+      <div style="background:var(--amber-bg);border:1px solid #fde68a;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">🏦 Total geral</div>
+        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--amber);">${totalGeralRes!=null?fmt(totalGeralRes):'—'}</div>
       </div>
     </div>`;}
 
