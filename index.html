@@ -311,9 +311,10 @@ const SEPARADOS=['pf-din','sem-troco','cart-din','nao-pagou'];
 const PF_CART='pf-cart';
 
 let currentUser=null,clockInterval=null;
-const todayStr=()=>new Date().toISOString().slice(0,10);
-const nowTimeShort=()=>new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-const nowTimeFull=()=>new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const brDate=()=>{const d=new Date();const br=new Date(d.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));return br;};
+const todayStr=()=>{const d=brDate();const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;};
+const nowTimeShort=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+const nowTimeFull=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const fmtDate=d=>d?d.split('-').reverse().join('/'):'—';
 const fmt=v=>'R$ '+Math.abs(parseFloat(v)||0).toFixed(2).replace('.',',');
 const isAdmin=()=>currentUser&&currentUser.role==='admin';
@@ -468,9 +469,8 @@ async function renderLista(){
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   const{data,error}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at',{ascending:false});
   if(error){el.innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
-  // operadores não veem pf-cart e tipos separados de admin
-  const ADMIN_HIDDEN=['cart-din','nao-pagou'];
-  const visivel=isAdmin()?(data||[]):(data||[]).filter(o=>!ADMIN_HIDDEN.includes(o.tipo));
+  // todos veem todas as ocorrências na listagem
+  const visivel=data||[];
   if(!visivel.length){el.innerHTML='<div class="empty">Nenhuma ocorrência para hoje.</div>';return;}
   el.innerHTML=`<div class="table-wrap"><table>
     <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Tipo</th><th>Valor</th><th>Impacto</th><th>Por</th><th>Obs.</th>${isAdmin()?'<th></th>':''}</tr></thead>
@@ -650,7 +650,8 @@ async function renderFechamento(){
       const ocsOp=lista.filter(o=>o.registrado_por===t.operador);
       const deb=ocsOp.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
       const esperado=parseFloat(t.valor_abertura)-deb;
-      const dif=t.valor_fechamento!=null?parseFloat(t.valor_fechamento)-parseFloat(t.valor_abertura):null;
+      // diferença = o que trouxe de volta vs o que deveria trazer (abertura - débitos)
+      const dif=t.valor_fechamento!=null?parseFloat(t.valor_fechamento)-esperado:null;
       return `<div class="turno-card">
         <div class="turno-header"><span class="turno-nome">${t.operador}</span><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em andamento':'Encerrado'}</span></div>
         <div class="turno-body">
@@ -662,7 +663,7 @@ async function renderFechamento(){
           <div class="turno-row"><span class="turno-lbl">Horário de abertura</span><span class="turno-val">${t.hora_abertura}</span></div>
           <div class="turno-row"><span class="turno-lbl">Horário de fechamento</span><span class="turno-val">${t.hora_fechamento||'<span style="color:var(--text3)">Pendente</span>'}</span></div>
           <div class="turno-row"><span class="turno-lbl">Valor de fechamento</span><span class="turno-val">${t.valor_fechamento!=null?fmt(t.valor_fechamento):'<span style="color:var(--text3)">Pendente</span>'}</span></div>
-          ${dif!=null?`<div class="turno-row"><span class="turno-lbl">Diferença do turno</span><span class="turno-val" style="color:${dif>=0?'var(--green)':'var(--red)'}">${dif>=0?'+':''}${dif.toFixed(2).replace('.',',')}</span></div>`:''}
+          ${dif!=null?`<div class="turno-row"><span class="turno-lbl">Diferença do turno</span><span class="turno-val" style="color:${dif>=0?'var(--green)':'var(--red)'}">${dif>=0?'+':''}${dif.toFixed(2).replace('.',',')} (esperado ${fmt(esperado)} / voltou ${fmt(parseFloat(t.valor_fechamento))})</span></div>`:''}
         </div>
       </div>`;
     }).join('');
