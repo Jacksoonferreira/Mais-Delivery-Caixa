@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Delivery — Ocorrências de Caixa</title>
+<title>Mais Delivery — Gestão Operacional</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -33,19 +33,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .op-badge{background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;}
 .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);}
 .status-dot.online{background:var(--green);}
+.turno-pill{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;}
+.turno-pill.aberto{background:var(--green-bg);color:var(--green);}
+.turno-pill.fechado{background:var(--surface2);color:var(--text3);}
 .btn-logout{padding:5px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;cursor:pointer;background:transparent;color:var(--text2);font-family:'DM Sans',sans-serif;}
 .btn-logout:hover{background:var(--surface2);}
 .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;overflow-x:auto;}
 .tab{padding:13px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:color .15s,border-color .15s;margin-bottom:-1px;}
 .tab:hover{color:var(--text);}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
-.main{max-width:960px;margin:0 auto;padding:1.5rem;}
+.main{max-width:1100px;margin:0 auto;padding:1.5rem;}
 .section{display:none;}.section.active{display:block;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--shadow-sm);}
 .card-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:1rem;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
-.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
 .field input,.field select{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;}
@@ -63,6 +65,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .btn-danger:hover{background:var(--red-bg);}
 .btn-blue{background:var(--blue);color:white;border-color:var(--blue);}
 .btn-blue:hover{background:#1d4ed8;}
+.btn-amber{background:var(--amber);color:white;border-color:var(--amber);}
+.btn-amber:hover{background:#b45309;}
 .btn-sm{padding:4px 12px;font-size:12px;}
 .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
 .badge-dc{background:var(--green-bg);color:var(--green);}
@@ -97,10 +101,25 @@ tr:hover td{background:#fafaf8;}
 .dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;box-shadow:var(--shadow-sm);text-align:center;}
 .dash-val{font-size:26px;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;}
 .dash-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
-.dash-card.accent{border-color:var(--accent);background:linear-gradient(135deg,#fff5f3,#fff);}
-.dash-card.blue{border-color:var(--blue);background:linear-gradient(135deg,#eff6ff,#fff);}
-.dash-card.green{border-color:var(--green);background:linear-gradient(135deg,#f0fdf4,#fff);}
-.dash-card.purple{border-color:var(--purple);background:linear-gradient(135deg,#f5f3ff,#fff);}
+/* ENTREGADORES CONTROLE */
+.ent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+.ent-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);transition:box-shadow .15s;}
+.ent-card.aberto{border-color:#86efac;box-shadow:0 0 0 2px rgba(22,163,74,.12);}
+.ent-card.chuva{border-color:#7dd3fc;box-shadow:0 0 0 2px rgba(37,99,235,.12);}
+.ent-card-header{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.ent-card-header.aberto{background:linear-gradient(135deg,#f0fdf4,#fff);}
+.ent-card-header.fechado{background:var(--surface2);}
+.ent-nome{font-weight:600;font-size:14px;}
+.ent-body{padding:10px 14px;}
+.ent-info-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.ent-info{font-size:11px;color:var(--text2);background:var(--surface2);padding:3px 8px;border-radius:6px;display:flex;align-items:center;gap:4px;}
+.ent-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:1.5rem;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow);}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:1.25rem;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem;}
 /* RESUMO */
 .resumo-geral{background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.5rem;box-shadow:var(--shadow-sm);}
 .resumo-header{background:var(--text);color:white;padding:12px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;}
@@ -114,19 +133,16 @@ tr:hover td{background:#fafaf8;}
 .resumo-lbl{color:var(--text2);}
 .resumo-val{font-family:'DM Mono',monospace;font-weight:600;font-size:14px;}
 .resumo-val.big{font-size:22px;}.resumo-val.red{color:var(--red);}.resumo-val.green{color:var(--green);}.resumo-val.blue{color:var(--blue);}.resumo-val.muted{color:var(--text3);}
-/* ADMIN ONLY */
 .admin-only{background:var(--surface);border:1.5px solid var(--purple);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.5rem;box-shadow:var(--shadow-sm);}
 .admin-only-header{background:var(--purple);color:white;padding:12px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
 .admin-only-body{padding:1.25rem 1.5rem;}
 .admin-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;}
-.admin-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:0;}
 .admin-metric{background:var(--purple-bg);border-radius:var(--radius);padding:1rem;text-align:center;border:1px solid #ddd6fe;}
 .admin-metric-val{font-size:16px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);margin-bottom:3px;}
 .admin-metric-lbl{font-size:10px;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;}
 .admin-total-row{background:var(--purple-bg);border:1px solid #ddd6fe;border-radius:var(--radius);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
 .admin-total-lbl{font-size:12px;color:#6d28d9;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
 .admin-total-val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);}
-/* PF CART */
 .pf-cart-section{background:var(--surface);border:1.5px solid var(--indigo);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.5rem;box-shadow:var(--shadow-sm);}
 .pf-cart-header{background:var(--indigo);color:white;padding:12px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
 .pf-cart-body{padding:1.25rem 1.5rem;}
@@ -138,7 +154,6 @@ tr:hover td{background:#fafaf8;}
 .sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px;}
 .sec-title{font-size:18px;font-weight:600;letter-spacing:-.3px;}
 .date-input{padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);cursor:pointer;}
-/* TURNO */
 .turno-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1rem;overflow:hidden;box-shadow:var(--shadow-sm);}
 .turno-header{background:var(--surface2);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
 .turno-nome{font-weight:600;font-size:14px;}
@@ -151,6 +166,9 @@ tr:hover td{background:#fafaf8;}
 .turno-status-box.aberto{background:#f0fdf4;border-color:#86efac;}
 .turno-status-box.sem-turno{background:var(--surface2);border-color:var(--border);}
 .sec-divider{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;margin-top:4px;}
+/* BLOQUEIO TURNO */
+.bloqueio-aviso{background:var(--amber-bg);border:1.5px solid var(--amber);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:12px;}
+.bloqueio-aviso svg{flex-shrink:0;color:var(--amber);}
 .empty{text-align:center;padding:2.5rem;color:var(--text3);font-size:13px;}
 .loading{text-align:center;padding:2rem;color:var(--text3);font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;}
 .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
@@ -159,15 +177,10 @@ tr:hover td{background:#fafaf8;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.error{background:var(--red);}
 .app{display:none;}.app.visible{display:block;}
-/* CONTADOR */
-.rank-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
-.rank-item:last-child{border-bottom:none;}
-.rank-num{font-family:'DM Mono',monospace;font-weight:600;color:var(--text3);width:24px;text-align:right;}
-.rank-nome{flex:1;font-weight:500;}
-.rank-val{font-family:'DM Mono',monospace;font-size:12px;}
-/* EXPORT BTNS */
-.export-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;}
-@media(max-width:600px){.row2,.row3,.row4,.resumo-inputs,.metrics3,.metrics4,.admin-grid-4,.admin-grid-5,.dash-grid{grid-template-columns:1fr;}.main{padding:1rem;}.tab{padding:10px 12px;font-size:12px;}.resumo-linhas{padding:0 1rem;}.resumo-inputs{padding:1rem;}}
+/* FILTRO ENTREGADORES */
+.filtro-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;}
+.filtro-bar input{padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);}
+@media(max-width:700px){.row2,.row3,.resumo-inputs,.metrics3,.metrics4,.admin-grid-4,.dash-grid{grid-template-columns:1fr;}.main{padding:1rem;}.tab{padding:10px 12px;font-size:12px;}.resumo-linhas{padding:0 1rem;}.resumo-inputs{padding:1rem;}.ent-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -176,7 +189,7 @@ tr:hover td{background:#fafaf8;}
   <div class="login-box">
     <div class="login-logo">
       <div class="login-icon"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
-      <div><div class="login-title">Mais Delivery</div><div class="login-sub">Ocorrências de Caixa</div></div>
+      <div><div class="login-title">Mais Delivery</div><div class="login-sub">Gestão Operacional</div></div>
     </div>
     <div class="login-error" id="login-error">Usuário ou senha incorretos.</div>
     <div class="field"><label>Usuário</label><input type="text" id="login-user" placeholder="Seu nome" autocomplete="username"></div>
@@ -193,6 +206,7 @@ tr:hover td{background:#fafaf8;}
     </div>
     <div class="header-right">
       <span class="status-dot" id="status-dot"></span>
+      <span class="turno-pill" id="turno-pill">Sem turno</span>
       <div class="user-pill"><span id="header-user"></span><span id="header-badge"></span></div>
       <button class="btn-logout" onclick="logout()">Sair</button>
     </div>
@@ -200,84 +214,104 @@ tr:hover td{background:#fafaf8;}
   <nav class="nav" id="main-nav"></nav>
   <main class="main">
 
-    <!-- DASHBOARD (admins) -->
+    <!-- DASHBOARD -->
     <div id="sec-dashboard" class="section">
-      <div class="sec-header">
-        <div class="sec-title">Dashboard</div>
-        <span class="mono" id="dash-date-label" style="font-size:12px;color:var(--text3)"></span>
-      </div>
+      <div class="sec-header"><div class="sec-title">Dashboard</div><span class="mono" id="dash-date-label" style="font-size:12px;color:var(--text3)"></span></div>
       <div class="dash-grid" id="dash-grid"></div>
       <div class="row2">
-        <div class="card">
-          <div class="card-title">Turnos de hoje</div>
-          <div id="dash-turnos"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Últimas ocorrências</div>
-          <div id="dash-ultimas"></div>
-        </div>
+        <div class="card"><div class="card-title">Turnos de hoje</div><div id="dash-turnos"></div></div>
+        <div class="card"><div class="card-title">Últimas ocorrências</div><div id="dash-ultimas"></div></div>
       </div>
     </div>
 
-    <!-- LANÇAR -->
-    <div id="sec-lancar" class="section">
-      <div class="card">
-        <div class="card-title">Nova ocorrência</div>
-        <div class="row2">
-          <div class="field"><label>Data</label><input type="text" id="f-data" readonly></div>
-          <div class="field"><label>Hora</label><input type="text" id="f-hora" readonly></div>
-        </div>
-        <div class="row2">
-          <div class="field"><label>Registrado por</label><input type="text" id="f-operador" readonly></div>
-          <div class="field">
-            <label>Entregador</label>
-            <select id="f-entregador"><option value="">Selecione o entregador...</option></select>
-          </div>
-        </div>
-        <div class="row2">
-          <div class="field"><label>Nº do pedido</label><input type="text" id="f-pedido" placeholder="Ex: 57131175"></div>
-          <div class="field"><label>Estabelecimento</label><input type="text" id="f-estab" placeholder="Nome do restaurante"></div>
-        </div>
-        <div class="row2">
-          <div class="field">
-            <label>Tipo de ocorrência</label>
-            <select id="f-tipo" onchange="atualizarDica()">
-              <option value="">Selecione...</option>
-              <optgroup label="— Débita do caixa —">
-                <option value="din-cart">Era dinheiro → passou cartão</option>
-                <option value="moeda">Negativo por moedas</option>
-                <option value="perdeu">Entregador perdeu</option>
-              </optgroup>
-              <optgroup label="— Registros separados —">
-                <option value="pf-din">Pedido por fora pago em dinheiro</option>
-                <option value="pf-cart">Pedido por fora pago no cartão</option>
-                <option value="sem-troco">Estabelecimento sem troco</option>
-                <option value="cart-din">Era cartão → passou dinheiro</option>
-                <option value="nao-pagou">Esqueceu de pagar estabelecimento</option>
-              </optgroup>
-            </select>
-          </div>
-          <div class="field"><label>Valor (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
-        </div>
-        <div class="dica" id="f-dica"></div>
-        <div class="field"><label>Observação (opcional)</label><input type="text" id="f-obs" placeholder="Ex: detalhe da ocorrência"></div>
-        <button class="btn btn-primary" id="btn-lancar" onclick="lancar()">Registrar ocorrência</button>
+    <!-- CONTROLE DE ENTREGADORES -->
+    <div id="sec-ctrl-ent" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Controle de entregadores</div>
+        <span class="mono" id="ctrl-date-label" style="font-size:12px;color:var(--text3)"></span>
       </div>
-      <div class="card">
-        <div class="sec-header">
-          <div class="card-title" style="margin:0">Ocorrências de hoje</div>
-          <span class="mono" id="lista-data-label" style="font-size:12px;color:var(--text3)"></span>
+      <div id="ctrl-bloqueio" style="display:none">
+        <div class="bloqueio-aviso">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
+            <div style="font-size:12px;color:var(--text2);">Você precisa abrir seu turno na aba "Meu turno" antes de gerenciar entregadores.</div>
+          </div>
         </div>
-        <div style="margin-top:1rem" id="lista-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+      </div>
+      <div id="ctrl-content">
+        <div class="filtro-bar">
+          <input type="text" id="filtro-ent" placeholder="Buscar entregador..." oninput="filtrarEntregadores()" style="flex:1;max-width:300px;">
+          <button class="btn btn-primary btn-sm" onclick="abrirModalAdicionar()">+ Adicionar entregador ao turno</button>
+        </div>
+        <div class="ent-grid" id="ent-grid"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- LANÇAR OCORRÊNCIA -->
+    <div id="sec-lancar" class="section">
+      <div id="lancar-bloqueio" style="display:none">
+        <div class="bloqueio-aviso">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
+            <div style="font-size:12px;color:var(--text2);">Abra seu turno antes de registrar ocorrências.</div>
+          </div>
+        </div>
+      </div>
+      <div id="lancar-form">
+        <div class="card">
+          <div class="card-title">Nova ocorrência</div>
+          <div class="row2">
+            <div class="field"><label>Data</label><input type="text" id="f-data" readonly></div>
+            <div class="field"><label>Hora</label><input type="text" id="f-hora" readonly></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Registrado por</label><input type="text" id="f-operador" readonly></div>
+            <div class="field"><label>Entregador</label><select id="f-entregador"><option value="">Selecione...</option></select></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Nº do pedido</label><input type="text" id="f-pedido" placeholder="Ex: 57131175"></div>
+            <div class="field"><label>Estabelecimento</label><input type="text" id="f-estab" placeholder="Nome do restaurante"></div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>Tipo de ocorrência</label>
+              <select id="f-tipo" onchange="atualizarDica()">
+                <option value="">Selecione...</option>
+                <optgroup label="— Débita do caixa —">
+                  <option value="din-cart">Era dinheiro → passou cartão</option>
+                  <option value="moeda">Negativo por moedas</option>
+                  <option value="perdeu">Entregador perdeu</option>
+                </optgroup>
+                <optgroup label="— Registros separados —">
+                  <option value="pf-din">Pedido por fora pago em dinheiro</option>
+                  <option value="pf-cart">Pedido por fora pago no cartão</option>
+                  <option value="sem-troco">Estabelecimento sem troco</option>
+                  <option value="cart-din">Era cartão → passou dinheiro</option>
+                  <option value="nao-pagou">Esqueceu de pagar estabelecimento</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="field"><label>Valor (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
+          </div>
+          <div class="dica" id="f-dica"></div>
+          <div class="field"><label>Observação (opcional)</label><input type="text" id="f-obs" placeholder="Ex: detalhe da ocorrência"></div>
+          <button class="btn btn-primary" id="btn-lancar" onclick="lancar()">Registrar ocorrência</button>
+        </div>
+        <div class="card">
+          <div class="sec-header">
+            <div class="card-title" style="margin:0">Ocorrências de hoje</div>
+            <span class="mono" id="lista-data-label" style="font-size:12px;color:var(--text3)"></span>
+          </div>
+          <div style="margin-top:1rem" id="lista-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+        </div>
       </div>
     </div>
 
     <!-- MEU TURNO -->
     <div id="sec-meu-turno" class="section">
-      <div class="sec-header">
-        <div class="sec-title">Meu turno</div>
-        <span class="mono" id="turno-data-label" style="font-size:12px;color:var(--text3)"></span>
-      </div>
+      <div class="sec-header"><div class="sec-title">Meu turno</div><span class="mono" id="turno-data-label" style="font-size:12px;color:var(--text3)"></span></div>
       <div id="turno-status-wrap"></div>
       <div id="turno-form-wrap"></div>
     </div>
@@ -288,13 +322,13 @@ tr:hover td{background:#fafaf8;}
         <div class="sec-title">Fechamento do dia</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <input type="date" class="date-input" id="fc-data" onchange="renderFechamento()">
-          <button class="btn btn-green btn-sm" onclick="exportarExcel()">Exportar Excel</button>
-          <button class="btn btn-blue btn-sm" onclick="exportarPDF()">Exportar PDF</button>
+          <button class="btn btn-green btn-sm" onclick="exportarExcel()">Excel</button>
+          <button class="btn btn-blue btn-sm" onclick="exportarPDF()">PDF</button>
         </div>
       </div>
       <div class="aviso">
         <strong>Débita do caixa:</strong> Dinheiro→Cartão <span class="tag tag-deb">débita</span> Moedas <span class="tag tag-deb">débita</span> Entregador perdeu <span class="tag tag-deb">débita</span><br>
-        <strong>Registros separados:</strong> Pedido fora (din.) <span class="tag tag-sep">separado</span> Estab. sem troco <span class="tag tag-sep">separado</span> Cartão→Dinheiro <span class="tag tag-sep">separado</span> Não pagou estab. <span class="tag tag-sep">separado</span><br>
+        <strong>Registros separados (não afetam caixa):</strong> Pedido fora (din.) <span class="tag tag-sep">sep.</span> Estab. sem troco <span class="tag tag-sep">sep.</span> Cartão→Dinheiro <span class="tag tag-sep">sep.</span> Não pagou estab. <span class="tag tag-sep">sep.</span><br>
         <strong>Aba exclusiva:</strong> Pedido fora (cartão) <span class="tag tag-pf">aba própria</span>
       </div>
       <div class="resumo-geral">
@@ -318,6 +352,8 @@ tr:hover td{background:#fafaf8;}
           <div class="admin-total-row" id="admin-total-row"></div>
         </div>
       </div>
+      <div class="sec-divider">Resumo dos entregadores do dia</div>
+      <div id="fc-ent-turno"></div>
       <div class="sec-divider">Contador de ocorrências por entregador</div>
       <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
       <div class="sec-divider">Detalhamento por turno / operador</div>
@@ -326,7 +362,7 @@ tr:hover td{background:#fafaf8;}
       <div id="fc-ocorrencias"></div>
     </div>
 
-    <!-- PEDIDOS POR FORA CARTÃO (admins) -->
+    <!-- PEDIDOS POR FORA CARTÃO -->
     <div id="sec-pf-cart" class="section">
       <div class="sec-header">
         <div class="sec-title">Pedidos por fora — Cartão</div>
@@ -337,26 +373,20 @@ tr:hover td{background:#fafaf8;}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
           Total acumulado — Pedidos por fora pagos no cartão
         </div>
-        <div class="pf-cart-body">
-          <div id="pfc-total-box"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-        </div>
+        <div class="pf-cart-body"><div id="pfc-total-box"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
       </div>
-      <div class="sec-divider">Detalhamento dos registros</div>
+      <div class="sec-divider">Detalhamento</div>
       <div id="pfc-lista"></div>
     </div>
 
-    <!-- CADASTRO DE ENTREGADORES (admins + Leonardo) -->
+    <!-- CADASTRO ENTREGADORES -->
     <div id="sec-entregadores" class="section">
-      <div class="sec-header">
-        <div class="sec-title">Cadastro de entregadores</div>
-      </div>
+      <div class="sec-header"><div class="sec-title">Cadastro de entregadores</div></div>
       <div class="card">
         <div class="card-title">Adicionar entregador</div>
         <div class="row2">
-          <div class="field"><label>Nome do entregador</label><input type="text" id="cad-nome" placeholder="Nome completo em maiúsculas"></div>
-          <div class="field" style="display:flex;align-items:flex-end;">
-            <button class="btn btn-primary" style="width:100%" onclick="adicionarEntregador()">Adicionar</button>
-          </div>
+          <div class="field"><label>Nome</label><input type="text" id="cad-nome" placeholder="Nome completo em maiúsculas"></div>
+          <div class="field" style="display:flex;align-items:flex-end;"><button class="btn btn-primary" style="width:100%" onclick="adicionarEntregador()">Adicionar</button></div>
         </div>
       </div>
       <div class="card">
@@ -367,6 +397,42 @@ tr:hover td{background:#fafaf8;}
 
   </main>
 </div>
+
+<!-- MODAL ABRIR ENTREGADOR -->
+<div class="modal-overlay" id="modal-abrir-ent">
+  <div class="modal">
+    <div class="modal-title">Abrir caixa — Entregador</div>
+    <div class="field"><label>Entregador</label><select id="m-entregador"><option value="">Selecione...</option></select></div>
+    <div class="row2">
+      <div class="field"><label>Bag nº</label><input type="text" id="m-bag" placeholder="Ex: 44, BH10"></div>
+      <div class="field"><label>Máquina de cartão</label><input type="text" id="m-maquina" placeholder="Ex: 5108, PJOR"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Valor de saída (R$)</label><input type="number" id="m-valor" value="100" step="0.01" min="0"></div>
+      <div class="field"><label>Complemento (R$)</label><input type="number" id="m-complemento" value="0" step="0.01" min="0"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-abrir-ent')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmarAbrirEnt()">Abrir agora</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FECHAR ENTREGADOR -->
+<div class="modal-overlay" id="modal-fechar-ent">
+  <div class="modal">
+    <div class="modal-title" id="modal-fechar-titulo">Encerrar turno</div>
+    <div class="field"><label>Rodou na chuva?</label>
+      <select id="m-chuva"><option value="false">Não</option><option value="true">Sim</option></select>
+    </div>
+    <div class="field"><label>Observação</label><input type="text" id="m-obs" placeholder="Opcional"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-fechar-ent')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarFecharEnt()">Encerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -386,8 +452,8 @@ const DEBITA=['din-cart','moeda','perdeu'];
 const SEPARADOS=['pf-din','sem-troco','cart-din','nao-pagou'];
 const PF_CART='pf-cart';
 
-let currentUser=null,clockInterval=null;
-const brDate=()=>{const d=new Date();return new Date(d.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));};
+let currentUser=null,clockInterval=null,meuTurnoAtual=null,entParaFechar=null;
+const brDate=()=>new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
 const todayStr=()=>{const d=brDate();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const nowTimeShort=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 const nowTimeFull=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -395,8 +461,10 @@ const fmtDate=d=>d?d.split('-').reverse().join('/'):'—';
 const fmt=v=>'R$ '+Math.abs(parseFloat(v)||0).toFixed(2).replace('.',',');
 const isAdmin=()=>currentUser&&currentUser.role==='admin';
 const canCad=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='operador_cad');
+const turnoAberto=()=>meuTurnoAtual&&meuTurnoAtual.status==='aberto';
+const podeAgir=()=>isAdmin()||turnoAberto();
 
-function loadSession(){try{const s=sessionStorage.getItem('md_user_v7');if(s){currentUser=JSON.parse(s);mostrarApp();}}catch(e){}}
+function loadSession(){try{const s=sessionStorage.getItem('md_v8');if(s){currentUser=JSON.parse(s);mostrarApp();}}catch(e){}}
 
 function fazerLogin(){
   const nome=document.getElementById('login-user').value.trim();
@@ -404,11 +472,11 @@ function fazerLogin(){
   const user=USUARIOS.find(u=>u.nome.toLowerCase()===nome.toLowerCase()&&u.senha===senha);
   if(!user){document.getElementById('login-error').style.display='block';return;}
   document.getElementById('login-error').style.display='none';
-  currentUser=user;sessionStorage.setItem('md_user_v7',JSON.stringify(user));mostrarApp();
+  currentUser=user;sessionStorage.setItem('md_v8',JSON.stringify(user));mostrarApp();
 }
 
 function logout(){
-  sessionStorage.removeItem('md_user_v7');currentUser=null;
+  sessionStorage.removeItem('md_v8');currentUser=null;meuTurnoAtual=null;
   if(clockInterval)clearInterval(clockInterval);
   document.getElementById('app').classList.remove('visible');
   document.getElementById('login-wrap').style.display='flex';
@@ -419,16 +487,15 @@ function buildNav(){
   const nav=document.getElementById('main-nav');
   let h='';
   if(isAdmin()) h+=`<button class="tab" onclick="showTab('dashboard',this)">Dashboard</button>`;
+  h+=`<button class="tab" onclick="showTab('ctrl-ent',this)">Entregadores</button>`;
   h+=`<button class="tab active" onclick="showTab('lancar',this)">Lançar ocorrência</button>`;
   h+=`<button class="tab" onclick="showTab('meu-turno',this)">Meu turno</button>`;
   if(isAdmin()){
     h+=`<button class="tab" onclick="showTab('fechamento',this)">Fechamento do dia</button>`;
     h+=`<button class="tab" onclick="showTab('pf-cart',this)">Pedidos fora (cartão)</button>`;
   }
-  if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Entregadores</button>`;
+  if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Cadastro</button>`;
   nav.innerHTML=h;
-  // set active on lancar by default
-  nav.querySelector('.tab.active')||nav.querySelectorAll('.tab')[0].classList.add('active');
 }
 
 function updateRO(){
@@ -437,7 +504,7 @@ function updateRO(){
   ['f-hora','ta-hora'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=t;});
 }
 
-function mostrarApp(){
+async function mostrarApp(){
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('app').classList.add('visible');
   document.getElementById('header-user').textContent=currentUser.nome;
@@ -452,13 +519,11 @@ function mostrarApp(){
   };
   tick();clockInterval=setInterval(tick,1000);
   checkOnline();
+  await carregarMeuTurno();
   carregarEntregadoresSelect();
   renderLista();
-  renderMeuTurno();
-  if(isAdmin()){
-    renderDashboard();
-    carregarDia(todayStr()).then(()=>renderResumoTotal());
-  }
+  renderCtrlEnt();
+  if(isAdmin()){renderDashboard();carregarDia(todayStr()).then(()=>renderResumoTotal());}
 }
 
 async function checkOnline(){
@@ -478,20 +543,181 @@ function showTab(name,btn){
   btn.classList.add('active');
   document.getElementById('sec-'+name).classList.add('active');
   if(name==='dashboard')renderDashboard();
+  if(name==='ctrl-ent')renderCtrlEnt();
   if(name==='meu-turno')renderMeuTurno();
   if(name==='fechamento')renderFechamento();
   if(name==='pf-cart')renderPfCart();
   if(name==='entregadores')renderEntregadores();
+  if(name==='lancar')atualizarBloqueioLancar();
 }
 
-// ENTREGADORES
+// TURNO DO OPERADOR
+async function carregarMeuTurno(){
+  if(isAdmin()){meuTurnoAtual={status:'aberto'};atualizarPillTurno();return;}
+  const{data}=await sb.from('turnos').select('*').eq('data',todayStr()).eq('operador',currentUser.nome).eq('status','aberto').maybeSingle();
+  meuTurnoAtual=data;
+  atualizarPillTurno();
+  atualizarBloqueioLancar();
+  atualizarBloqueioCtrl();
+}
+
+function atualizarPillTurno(){
+  const pill=document.getElementById('turno-pill');
+  if(podeAgir()){pill.textContent='Turno aberto';pill.className='turno-pill aberto';}
+  else{pill.textContent='Sem turno';pill.className='turno-pill fechado';}
+}
+
+function atualizarBloqueioLancar(){
+  const bloq=document.getElementById('lancar-bloqueio');
+  const form=document.getElementById('lancar-form');
+  if(!bloq||!form)return;
+  if(podeAgir()){bloq.style.display='none';form.style.display='block';}
+  else{bloq.style.display='block';form.style.display='none';}
+}
+
+function atualizarBloqueioCtrl(){
+  const bloq=document.getElementById('ctrl-bloqueio');
+  const cont=document.getElementById('ctrl-content');
+  if(!bloq||!cont)return;
+  if(podeAgir()){bloq.style.display='none';cont.style.display='block';}
+  else{bloq.style.display='block';cont.style.display='none';}
+}
+
+// CONTROLE DE ENTREGADORES
+let entregadoresList=[];
+async function renderCtrlEnt(){
+  document.getElementById('ctrl-date-label').textContent=fmtDate(todayStr());
+  atualizarBloqueioCtrl();
+  if(!podeAgir())return;
+  const el=document.getElementById('ent-grid');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  const{data:ents}=await sb.from('entregadores').select('nome').eq('ativo',true).order('nome');
+  const{data:turnos}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).order('hora_abertura');
+  entregadoresList=ents||[];
+  const turnosMap={};
+  (turnos||[]).forEach(t=>turnosMap[t.entregador]=t);
+  if(!entregadoresList.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
+  renderEntGrid(turnosMap);
+}
+
+function renderEntGrid(turnosMap){
+  const filtro=document.getElementById('filtro-ent').value.toLowerCase();
+  const el=document.getElementById('ent-grid');
+  const lista=entregadoresList.filter(e=>e.nome.toLowerCase().includes(filtro));
+  if(!lista.length){el.innerHTML='<div class="empty">Nenhum entregador encontrado.</div>';return;}
+  el.innerHTML=lista.map(e=>{
+    const t=turnosMap[e.nome];
+    const status=t?t.status:'livre';
+    const isAberto=status==='aberto';
+    const isFechado=status==='fechado';
+    const isChuva=t&&t.chuva;
+    return `<div class="ent-card ${isAberto?'aberto':''} ${isChuva?'chuva':''}">
+      <div class="ent-card-header ${isAberto?'aberto':'fechado'}">
+        <span class="ent-nome">${e.nome}</span>
+        <span class="badge ${isAberto?'badge-aberto':isFechado?'badge-fechado':'badge-perdeu'}" style="${!t?'background:var(--surface2);color:var(--text3)':''}">
+          ${isAberto?'Em rota':isFechado?'Encerrado':'Livre'}
+        </span>
+      </div>
+      <div class="ent-body">
+        ${t?`<div class="ent-info-row">
+          ${t.bag?`<span class="ent-info">🎒 Bag ${t.bag}</span>`:''}
+          ${t.maquina?`<span class="ent-info">💳 ${t.maquina}</span>`:''}
+          <span class="ent-info">🕐 ${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}</span>
+          ${t.chuva?'<span class="ent-info">🌧️ Chuva</span>':''}
+          ${parseFloat(t.complemento||0)>0?`<span class="ent-info">+${fmt(t.complemento)}</span>`:''}
+        </div>
+        ${t.obs?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${t.obs}</div>`:''}
+        `:'<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Ainda não entrou hoje.</div>'}
+        <div class="ent-actions">
+          ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
+          ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}')">■ Encerrar</button>`:''}
+          ${(isAdmin()||canCad())&&t?`<button class="btn btn-sm" onclick="editarBag(${t.id},'${(t.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function filtrarEntregadores(){
+  const{data:turnos}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).order('hora_abertura');
+  const turnosMap={};(turnos||[]).forEach(t=>turnosMap[t.entregador]=t);
+  renderEntGrid(turnosMap);
+}
+
+function abrirModalAdicionar(){
+  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
+  const sel=document.getElementById('m-entregador');
+  sel.innerHTML='<option value="">Selecione...</option>'+entregadoresList.map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
+  document.getElementById('m-bag').value='';
+  document.getElementById('m-maquina').value='';
+  document.getElementById('m-valor').value='100';
+  document.getElementById('m-complemento').value='0';
+  document.getElementById('modal-abrir-ent').classList.add('open');
+}
+
+async function confirmarAbrirEnt(){
+  const ent=document.getElementById('m-entregador').value;
+  const bag=document.getElementById('m-bag').value.trim();
+  const maquina=document.getElementById('m-maquina').value.trim();
+  const valor=parseFloat(document.getElementById('m-valor').value)||100;
+  const complemento=parseFloat(document.getElementById('m-complemento').value)||0;
+  if(!ent){toast('Selecione o entregador.','erro');return;}
+  const hora=nowTimeShort();
+  const operador=isAdmin()?currentUser.nome:(meuTurnoAtual?.operador||currentUser.nome);
+  const{error}=await sb.from('entregadores_turno').insert({data:todayStr(),entregador:ent,operador,hora_abertura:hora,bag,maquina,valor_abertura:valor,complemento,status:'aberto'});
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  fecharModal('modal-abrir-ent');toast(`${ent} aberto!`);renderCtrlEnt();
+  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+}
+
+function abrirEntregador(nome){
+  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
+  const sel=document.getElementById('m-entregador');
+  sel.innerHTML=`<option value="${nome}">${nome}</option>`;
+  document.getElementById('m-bag').value='';
+  document.getElementById('m-maquina').value='';
+  document.getElementById('m-valor').value='100';
+  document.getElementById('m-complemento').value='0';
+  document.getElementById('modal-abrir-ent').classList.add('open');
+}
+
+function iniciarFecharEnt(id,nome){
+  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
+  entParaFechar=id;
+  document.getElementById('modal-fechar-titulo').textContent=`Encerrar — ${nome}`;
+  document.getElementById('m-chuva').value='false';
+  document.getElementById('m-obs').value='';
+  document.getElementById('modal-fechar-ent').classList.add('open');
+}
+
+async function confirmarFecharEnt(){
+  const chuva=document.getElementById('m-chuva').value==='true';
+  const obs=document.getElementById('m-obs').value.trim();
+  const hora=nowTimeShort();
+  const{error}=await sb.from('entregadores_turno').update({hora_fechamento:hora,chuva,obs,status:'fechado'}).eq('id',entParaFechar);
+  if(error){toast('Erro ao encerrar.','erro');return;}
+  fecharModal('modal-fechar-ent');toast('Entregador encerrado!');renderCtrlEnt();
+}
+
+async function editarBag(id,bagAtual){
+  const novaBag=prompt('Número da bag:',bagAtual);
+  if(novaBag===null)return;
+  await sb.from('entregadores_turno').update({bag:novaBag.trim()}).eq('id',id);
+  toast('Bag atualizada!');renderCtrlEnt();
+}
+
+function fecharModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+
+// SELECT ENTREGADORES
 async function carregarEntregadoresSelect(){
   const{data}=await sb.from('entregadores').select('nome').eq('ativo',true).order('nome');
   const sel=document.getElementById('f-entregador');
   if(!sel)return;
-  sel.innerHTML='<option value="">Selecione o entregador...</option>'+(data||[]).map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Selecione...</option>'+(data||[]).map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
 }
 
+// CADASTRO
 async function renderEntregadores(){
   const el=document.getElementById('lista-entregadores');
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
@@ -516,8 +742,7 @@ async function adicionarEntregador(){
   const{error}=await sb.from('entregadores').insert({nome,ativo:true});
   if(error){toast('Erro: '+error.message,'erro');return;}
   document.getElementById('cad-nome').value='';
-  toast('Entregador adicionado!');
-  renderEntregadores();carregarEntregadoresSelect();
+  toast('Entregador adicionado!');renderEntregadores();carregarEntregadoresSelect();
 }
 
 async function toggleEntregador(id,ativo){
@@ -526,9 +751,9 @@ async function toggleEntregador(id,ativo){
 }
 
 async function removerEntregador(id,nome){
-  if(!confirm(`Remover "${nome}" permanentemente?`))return;
+  if(!confirm(`Remover "${nome}"?`))return;
   await sb.from('entregadores').delete().eq('id',id);
-  toast('Entregador removido.');renderEntregadores();carregarEntregadoresSelect();
+  toast('Removido.');renderEntregadores();carregarEntregadoresSelect();
 }
 
 // DASHBOARD
@@ -536,60 +761,48 @@ async function renderDashboard(){
   document.getElementById('dash-date-label').textContent=fmtDate(todayStr());
   const{data:ocs}=await sb.from('ocorrencias').select('tipo,valor').eq('data',todayStr());
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',todayStr()).order('hora_abertura');
+  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',todayStr());
   const lista=ocs||[];
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
-  const abertos=(turnos||[]).filter(t=>t.status==='aberto').length;
-  const totalOcs=lista.length;
+  const emRota=(entTurnos||[]).filter(t=>t.status==='aberto').length;
   document.getElementById('dash-grid').innerHTML=`
-    <div class="dash-card accent"><div class="dash-val" style="color:var(--accent)">${fmt(totalDebita)}</div><div class="dash-lbl">Total débitos do dia</div></div>
-    <div class="dash-card blue"><div class="dash-val" style="color:var(--blue)">${abertos}</div><div class="dash-lbl">Turnos em andamento</div></div>
-    <div class="dash-card green"><div class="dash-val" style="color:var(--green)">${(turnos||[]).filter(t=>t.status==='fechado').length}</div><div class="dash-lbl">Turnos encerrados</div></div>
-    <div class="dash-card purple"><div class="dash-val" style="color:var(--purple)">${totalOcs}</div><div class="dash-lbl">Ocorrências hoje</div></div>`;
-  // turnos
+    <div class="dash-card" style="border-color:var(--accent)"><div class="dash-val" style="color:var(--accent)">${fmt(totalDebita)}</div><div class="dash-lbl">Total débitos</div></div>
+    <div class="dash-card" style="border-color:var(--green)"><div class="dash-val" style="color:var(--green)">${emRota}</div><div class="dash-lbl">Entregadores em rota</div></div>
+    <div class="dash-card" style="border-color:var(--blue)"><div class="dash-val" style="color:var(--blue)">${(turnos||[]).filter(t=>t.status==='aberto').length}</div><div class="dash-lbl">Turnos abertos</div></div>
+    <div class="dash-card" style="border-color:var(--purple)"><div class="dash-val" style="color:var(--purple)">${lista.length}</div><div class="dash-lbl">Ocorrências hoje</div></div>`;
   const dt=document.getElementById('dash-turnos');
   if(!turnos||!turnos.length){dt.innerHTML='<div class="empty">Nenhum turno hoje.</div>';}
   else{dt.innerHTML=turnos.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
     <span style="font-weight:500">${t.operador}</span>
-    <span style="display:flex;align-items:center;gap:8px;">
-      <span class="mono" style="font-size:12px;color:var(--text2)">${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}</span>
-      <span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Aberto':'Fechado'}</span>
-    </span>
+    <span style="display:flex;align-items:center;gap:8px;"><span class="mono" style="font-size:12px;color:var(--text2)">${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}</span>
+    <span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Aberto':'Fechado'}</span></span>
   </div>`).join('');}
-  // últimas ocorrências
   const{data:ultimas}=await sb.from('ocorrencias').select('*').eq('data',todayStr()).order('created_at',{ascending:false}).limit(5);
   const du=document.getElementById('dash-ultimas');
   if(!ultimas||!ultimas.length){du.innerHTML='<div class="empty">Nenhuma ocorrência hoje.</div>';}
   else{du.innerHTML=ultimas.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
     <span><span style="font-weight:500">${o.entregador}</span> <span style="color:var(--text2);font-size:12px">via ${o.registrado_por}</span></span>
-    <span style="display:flex;align-items:center;gap:8px;">${badgeHtml(o.tipo)}<span class="mono">${fmt(o.valor)}</span></span>
+    <span style="display:flex;align-items:center;gap:6px;">${badgeHtml(o.tipo)}<span class="mono">${fmt(o.valor)}</span></span>
   </div>`).join('');}
 }
 
+// DICAS
 function atualizarDica(){
   const t=document.getElementById('f-tipo').value;
   const el=document.getElementById('f-dica');
-  const map={
-    'din-cart':['dica-neg','Cliente marcou dinheiro e pagou no cartão — DÉBITA do caixa.'],
-    'moeda':   ['dica-neg','Caixa negativo por moedas — DÉBITA do caixa.'],
-    'perdeu':  ['dica-neg','Entregador perdeu dinheiro — DÉBITA do caixa.'],
-    'pf-din':  ['dica-sep','Pedido por fora pago em dinheiro — registrado separadamente, não afeta o caixa.'],
-    'pf-cart': ['dica-pf', 'Pedido por fora pago no cartão — vai para a aba exclusiva "Pedidos fora (cartão)", não afeta o caixa.'],
-    'sem-troco':['dica-sep','Estabelecimento sem troco — registrado separadamente, não afeta o caixa.'],
-    'cart-din':['dica-sep','Cliente marcou cartão e pagou em dinheiro — registrado separadamente, não afeta o caixa.'],
-    'nao-pagou':['dica-sep','Não pagou o estabelecimento — registrado separadamente, não afeta o caixa.'],
-  };
+  const map={'din-cart':['dica-neg','Cliente marcou dinheiro e pagou no cartão — DÉBITA do caixa.'],'moeda':['dica-neg','Caixa negativo por moedas — DÉBITA do caixa.'],'perdeu':['dica-neg','Entregador perdeu dinheiro — DÉBITA do caixa.'],'pf-din':['dica-sep','Pedido por fora pago em dinheiro — registrado separadamente, não afeta o caixa.'],'pf-cart':['dica-pf','Pedido por fora pago no cartão — vai para a aba exclusiva, não afeta o caixa.'],'sem-troco':['dica-sep','Estabelecimento sem troco — registrado separadamente, não afeta o caixa.'],'cart-din':['dica-sep','Cliente marcou cartão e pagou em dinheiro — registrado separadamente, não afeta o caixa.'],'nao-pagou':['dica-sep','Não pagou o estabelecimento — registrado separadamente, não afeta o caixa.']};
   el.className='dica';
   if(map[t]){el.classList.add(map[t][0]);el.textContent=map[t][1];el.style.display='block';}
   else el.style.display='none';
 }
 
 const badgeHtml=t=>({'din-cart':'<span class="badge badge-dc">Dinheiro→Cartão</span>','cart-din':'<span class="badge badge-cd">Cartão→Dinheiro</span>','nao-pagou':'<span class="badge badge-np">Não pagou estab.</span>','moeda':'<span class="badge badge-mo">Moedas</span>','perdeu':'<span class="badge badge-perdeu">Entregador perdeu</span>','pf-din':'<span class="badge badge-pf-din">Pedido fora (din.)</span>','pf-cart':'<span class="badge badge-pf-cart">Pedido fora (cart.)</span>','sem-troco':'<span class="badge badge-st">Estab. sem troco</span>'}[t]||t);
-
 const tipoLabel=t=>({'din-cart':'Dinheiro→Cartão','cart-din':'Cartão→Dinheiro','nao-pagou':'Não pagou estab.','moeda':'Moedas','perdeu':'Entregador perdeu','pf-din':'Pedido fora (din.)','pf-cart':'Pedido fora (cart.)','sem-troco':'Estab. sem troco'}[t]||t);
-
 const impactoHtml=t=>{if(DEBITA.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--red);">débita caixa</span>';if(t===PF_CART)return'<span style="font-size:11px;font-weight:700;color:var(--indigo);">aba cartão</span>';if(SEPARADOS.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--purple);">separado</span>';return'<span style="font-size:11px;color:var(--text3);">—</span>';};
 
+// LANÇAR
 async function lancar(){
+  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   const data=todayStr(),hora=nowTimeShort();
   const ent=document.getElementById('f-entregador').value;
   const ped=document.getElementById('f-pedido').value.trim();
@@ -607,18 +820,14 @@ async function lancar(){
   document.getElementById('f-tipo').value='';document.getElementById('f-dica').style.display='none';
   toast('Ocorrência registrada!');renderLista();
   if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
-  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
 }
 
 async function remover(id){
   if(!isAdmin()){toast('Apenas administradores podem apagar.','erro');return;}
   if(!confirm('Remover esta ocorrência?'))return;
-  const{error}=await sb.from('ocorrencias').delete().eq('id',id);
-  if(error){toast('Erro ao remover.','erro');return;}
+  await sb.from('ocorrencias').delete().eq('id',id);
   toast('Removida.');renderLista();
   if(document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
-  if(document.getElementById('sec-pf-cart').classList.contains('active'))renderPfCart();
-  if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
 }
 
 async function renderLista(){
@@ -633,12 +842,9 @@ async function renderLista(){
   el.innerHTML=`<div class="table-wrap"><table>
     <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Tipo</th><th>Valor</th><th>Impacto</th><th>Por</th><th>Obs.</th>${isAdmin()?'<th></th>':''}</tr></thead>
     <tbody>${visivel.map(o=>`<tr>
-      <td class="mono">${o.hora||'—'}</td>
-      <td style="font-weight:500">${o.entregador}</td>
-      <td class="mono">${o.pedido}</td>
-      <td>${o.estabelecimento}</td>
-      <td>${badgeHtml(o.tipo)}</td>
-      <td class="mono">${fmt(o.valor)}</td>
+      <td class="mono">${o.hora||'—'}</td><td style="font-weight:500">${o.entregador}</td>
+      <td class="mono">${o.pedido}</td><td>${o.estabelecimento}</td>
+      <td>${badgeHtml(o.tipo)}</td><td class="mono">${fmt(o.valor)}</td>
       <td>${impactoHtml(o.tipo)}</td>
       <td style="color:var(--text2);font-size:12px">${o.registrado_por||'—'}</td>
       <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
@@ -647,6 +853,7 @@ async function renderLista(){
   </table></div>`;
 }
 
+// MEU TURNO
 async function renderMeuTurno(){
   const data=todayStr();
   document.getElementById('turno-data-label').textContent=fmtDate(data);
@@ -656,11 +863,12 @@ async function renderMeuTurno(){
   const{data:ocsOp}=await sb.from('ocorrencias').select('*').eq('data',data).eq('registrado_por',currentUser.nome).order('created_at',{ascending:false});
   const lista=ocsOp||[];
   const aberto=turnos&&turnos.find(t=>t.status==='aberto');
+  meuTurnoAtual=aberto||null;
+  atualizarPillTurno();
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
   const abertura=aberto?parseFloat(aberto.valor_abertura):100;
   const saldo=abertura-totalDebita;
   const separadosVisiveis=lista.filter(o=>[PF_CART,'pf-din','sem-troco'].includes(o.tipo));
-
   if(aberto){
     sw.innerHTML=`<div class="turno-status-box aberto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -677,21 +885,18 @@ async function renderMeuTurno(){
       </div>
       <button class="btn btn-primary" onclick="fecharTurno(${aberto.id})">Encerrar meu turno</button>
     </div>`;
-    if(separadosVisiveis.length){
-      sw.innerHTML+=`<div class="card" style="margin-top:1rem">
-        <div class="card-title">Registros separados do meu turno</div>
-        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Estes valores não afetam o caixa.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Tipo</th><th>Valor</th><th>Obs.</th></tr></thead>
-          <tbody>${separadosVisiveis.map(o=>`<tr>
-            <td class="mono">${o.hora||'—'}</td><td>${o.entregador}</td><td class="mono">${o.pedido}</td>
-            <td>${badgeHtml(o.tipo)}</td>
-            <td class="mono" style="color:var(--purple);font-weight:600">${fmt(o.valor)}</td>
-            <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
-          </tr>`).join('')}</tbody>
-        </table></div>
-      </div>`;
-    }
+    if(separadosVisiveis.length){sw.innerHTML+=`<div class="card" style="margin-top:1rem">
+      <div class="card-title">Registros separados do meu turno</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Tipo</th><th>Valor</th><th>Obs.</th></tr></thead>
+        <tbody>${separadosVisiveis.map(o=>`<tr>
+          <td class="mono">${o.hora||'—'}</td><td>${o.entregador}</td><td class="mono">${o.pedido}</td>
+          <td>${badgeHtml(o.tipo)}</td>
+          <td class="mono" style="color:var(--purple);font-weight:600">${fmt(o.valor)}</td>
+          <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;}
     fw.innerHTML='';
   } else {
     const temFechado=turnos&&turnos.some(t=>t.status==='fechado');
@@ -704,13 +909,13 @@ async function renderMeuTurno(){
       </div>`).join('')}</div>`:''}
     </div>`;
     fw.innerHTML=`<div class="card">
-      <div class="card-title">Abrir caixa</div>
+      <div class="card-title">Abrir meu turno</div>
       <div class="row2">
         <div class="field"><label>Data</label><input type="text" id="ta-data" readonly value="${fmtDate(data)}"></div>
         <div class="field"><label>Hora de abertura</label><input type="text" id="ta-hora" readonly value="${nowTimeShort()}"></div>
       </div>
       <div class="field"><label>Valor de abertura (R$)</label><input type="number" id="ta-valor" value="100" step="0.01" min="0"></div>
-      <button class="btn btn-green" onclick="abrirTurno()">Abrir caixa agora</button>
+      <button class="btn btn-green" onclick="abrirTurno()">Abrir turno agora</button>
     </div>`;
   }
 }
@@ -721,8 +926,12 @@ async function abrirTurno(){
   const btn=event.target;btn.disabled=true;btn.textContent='Abrindo...';
   const{error}=await sb.from('turnos').insert({data,operador:currentUser.nome,hora_abertura:hora,valor_abertura:val,status:'aberto'});
   btn.disabled=false;
-  if(error){toast('Erro: '+error.message,'erro');btn.textContent='Abrir caixa agora';return;}
-  toast('Caixa aberto!');renderMeuTurno();
+  if(error){toast('Erro: '+error.message,'erro');btn.textContent='Abrir turno agora';return;}
+  toast('Turno aberto!');
+  await carregarMeuTurno();
+  renderMeuTurno();
+  atualizarBloqueioLancar();
+  atualizarBloqueioCtrl();
 }
 
 async function fecharTurno(id){
@@ -730,9 +939,15 @@ async function fecharTurno(id){
   if(isNaN(val)||val<0){toast('Informe o valor de fechamento.','erro');return;}
   const{error}=await sb.from('turnos').update({hora_fechamento:nowTimeShort(),valor_fechamento:val,status:'fechado'}).eq('id',id);
   if(error){toast('Erro ao fechar.','erro');return;}
-  toast('Turno encerrado!');renderMeuTurno();
+  toast('Turno encerrado!');
+  meuTurnoAtual=null;
+  atualizarPillTurno();
+  renderMeuTurno();
+  atualizarBloqueioLancar();
+  atualizarBloqueioCtrl();
 }
 
+// FECHAMENTO
 let saveDiaTimer=null;
 function salvarDia(){
   clearTimeout(saveDiaTimer);
@@ -758,39 +973,68 @@ async function renderResumoTotal(){
   const{data:dia}=await sb.from('caixa_dia').select('*').eq('data',filtro).maybeSingle();
   const lista=ocs||[];
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
-  const totPfDin   =lista.filter(o=>o.tipo==='pf-din').reduce((s,o)=>s+parseFloat(o.valor),0);
-  const totStTroco =lista.filter(o=>o.tipo==='sem-troco').reduce((s,o)=>s+parseFloat(o.valor),0);
-  const totCartDin =lista.filter(o=>o.tipo==='cart-din').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totPfDin=lista.filter(o=>o.tipo==='pf-din').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totStTroco=lista.filter(o=>o.tipo==='sem-troco').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totCartDin=lista.filter(o=>o.tipo==='cart-din').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totNaoPagou=lista.filter(o=>o.tipo==='nao-pagou').reduce((s,o)=>s+parseFloat(o.valor),0);
-  const totalSeparados=totPfDin+totStTroco+totCartDin+totNaoPagou;
+  const totalSep=totPfDin+totStTroco+totCartDin+totNaoPagou;
   const inicial=dia?.valor_inicial!=null?parseFloat(dia.valor_inicial):null;
   const final_=dia?.valor_final!=null?parseFloat(dia.valor_final):null;
   const esperado=inicial!=null?inicial-totalDebita:null;
   const difReal=esperado!=null&&final_!=null?final_-esperado:null;
-
   el.innerHTML=`
     <div class="resumo-linha"><span class="resumo-lbl">Valor inicial do caixa</span><span class="resumo-val blue">${inicial!=null?fmt(inicial):'<span style="color:var(--text3)">—</span>'}</span></div>
     <div class="resumo-linha"><span class="resumo-lbl">Total de débitos do dia</span><span class="resumo-val red">${totalDebita>0?'-'+fmt(totalDebita):'R$ 0,00'}</span></div>
     ${esperado!=null?`<div class="resumo-linha"><span class="resumo-lbl">Caixa esperado no fechamento</span><span class="resumo-val">${fmt(esperado)}</span></div>`:''}
     <div class="resumo-linha"><span class="resumo-lbl">Valor final informado</span><span class="resumo-val">${final_!=null?fmt(final_):'<span style="color:var(--text3)">—</span>'}</span></div>
-    <div class="resumo-linha total-final">
-      <span class="resumo-lbl"><strong>Diferença do dia</strong></span>
+    <div class="resumo-linha total-final"><span class="resumo-lbl"><strong>Diferença do dia</strong></span>
       <span class="resumo-val big ${difReal==null?'muted':difReal>=0?'green':'red'}">${difReal==null?'—':(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',',')}</span>
     </div>`;
-
   document.getElementById('admin-metrics').innerHTML=`
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totPfDin)}</div><div class="admin-metric-lbl">Pedido fora (din.)</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totStTroco)}</div><div class="admin-metric-lbl">Estab. sem troco</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totCartDin)}</div><div class="admin-metric-lbl">Cartão → Dinheiro</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totNaoPagou)}</div><div class="admin-metric-lbl">Não pagou estab.</div></div>`;
-
-  document.getElementById('admin-total-row').innerHTML=`
-    <span class="admin-total-lbl">Total registros separados</span>
-    <span class="admin-total-val">${fmt(totalSeparados)}</span>`;
+  document.getElementById('admin-total-row').innerHTML=`<span class="admin-total-lbl">Total registros separados</span><span class="admin-total-val">${fmt(totalSep)}</span>`;
 }
 
-// CONTADOR POR ENTREGADOR
-async function renderContador(filtro, lista){
+async function renderFechamento(){
+  const filtro=document.getElementById('fc-data').value||todayStr();
+  await carregarDia(filtro);await renderResumoTotal();
+  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro).order('hora_abertura');
+  const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
+  const{data:allOcs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
+  const lista=allOcs||[];
+  // resumo entregadores
+  const fcEnt=document.getElementById('fc-ent-turno');
+  if(!entTurnos||!entTurnos.length){fcEnt.innerHTML='<div class="empty">Nenhum entregador registrado para esta data.</div>';}
+  else{
+    const totalAbertos=(entTurnos||[]).filter(t=>t.status==='aberto').length;
+    const totalChuva=(entTurnos||[]).filter(t=>t.chuva).length;
+    fcEnt.innerHTML=`
+      <div class="metrics4" style="margin-bottom:1rem">
+        <div class="metric"><div class="metric-val blue">${entTurnos.length}</div><div class="metric-lbl">Total do dia</div></div>
+        <div class="metric"><div class="metric-val green">${entTurnos.filter(t=>t.status==='fechado').length}</div><div class="metric-lbl">Encerrados</div></div>
+        <div class="metric"><div class="metric-val amber">${totalAbertos}</div><div class="metric-lbl">Em rota</div></div>
+        <div class="metric"><div class="metric-val indigo">${totalChuva}</div><div class="metric-lbl">Rodaram na chuva</div></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Entregador</th><th>Bag</th><th>Máquina</th><th>Abertura</th><th>Fechamento</th><th>Saída</th><th>Compl.</th><th>Chuva</th><th>Status</th><th>Obs.</th></tr></thead>
+        <tbody>${entTurnos.map(t=>`<tr>
+          <td style="font-weight:500">${t.entregador}</td>
+          <td class="mono">${t.bag||'—'}</td>
+          <td class="mono">${t.maquina||'—'}</td>
+          <td class="mono">${t.hora_abertura}</td>
+          <td class="mono">${t.hora_fechamento||'—'}</td>
+          <td class="mono">${fmt(t.valor_abertura)}</td>
+          <td class="mono">${parseFloat(t.complemento||0)>0?fmt(t.complemento):'—'}</td>
+          <td>${t.chuva?'🌧️ Sim':'Não'}</td>
+          <td><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em rota':'Encerrado'}</span></td>
+          <td style="color:var(--text2);font-size:12px">${t.obs||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  }
+  // contador
   const wrap=document.getElementById('contador-wrap');
   const contagem={};
   lista.forEach(o=>{
@@ -801,8 +1045,8 @@ async function renderContador(filtro, lista){
     else if(SEPARADOS.includes(o.tipo))contagem[o.entregador].separado++;
   });
   const sorted=Object.entries(contagem).sort((a,b)=>b[1].total-a[1].total);
-  if(!sorted.length){wrap.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';return;}
-  wrap.innerHTML=`<div class="table-wrap"><table>
+  if(!sorted.length){wrap.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';}
+  else{wrap.innerHTML=`<div class="table-wrap"><table>
     <thead><tr><th>#</th><th>Entregador</th><th>Total</th><th>Débita caixa</th><th>Separados</th><th>Ped. fora (cart.)</th></tr></thead>
     <tbody>${sorted.map(([nome,c],i)=>`<tr>
       <td class="mono" style="color:var(--text3)">${i+1}</td>
@@ -812,20 +1056,10 @@ async function renderContador(filtro, lista){
       <td class="mono" style="color:${c.separado>0?'var(--purple)':'var(--text3)'}">${c.separado}</td>
       <td class="mono" style="color:${c.pfcart>0?'var(--indigo)':'var(--text3)'}">${c.pfcart}</td>
     </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-
-async function renderFechamento(){
-  const filtro=document.getElementById('fc-data').value||todayStr();
-  await carregarDia(filtro);await renderResumoTotal();
-  const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
-  const{data:allOcs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
-  const lista=allOcs||[];
-
-  await renderContador(filtro,lista);
-
+  </table></div>`;}
+  // turnos operadores
   const fcTurnos=document.getElementById('fc-turnos');
-  if(!turnos||!turnos.length){fcTurnos.innerHTML='<div class="empty">Nenhum turno registrado para esta data.</div>';}
+  if(!turnos||!turnos.length){fcTurnos.innerHTML='<div class="empty">Nenhum turno registrado.</div>';}
   else{fcTurnos.innerHTML=turnos.map(t=>{
     const ocsOp=lista.filter(o=>o.registrado_por===t.operador);
     const deb=ocsOp.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
@@ -845,18 +1079,15 @@ async function renderFechamento(){
         ${dif!=null?`<div class="turno-row"><span class="turno-lbl">Diferença do turno</span><span class="turno-val" style="color:${dif>=0?'var(--green)':'var(--red)'}">${dif>=0?'+':''}${dif.toFixed(2).replace('.',',')} (esperado ${fmt(esperado)} / voltou ${fmt(parseFloat(t.valor_fechamento))})</span></div>`:''}
       </div>
     </div>`;}).join('');}
-
+  // todas ocorrências
   const fcOcs=document.getElementById('fc-ocorrencias');
   if(!lista.length){fcOcs.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';}
   else{fcOcs.innerHTML=`<div class="table-wrap"><table>
     <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Tipo</th><th>Valor</th><th>Impacto</th><th>Por</th><th>Obs.</th></tr></thead>
     <tbody>${lista.map(o=>`<tr>
-      <td class="mono">${o.hora||'—'}</td>
-      <td style="font-weight:500">${o.entregador}</td>
-      <td class="mono">${o.pedido}</td>
-      <td>${o.estabelecimento}</td>
-      <td>${badgeHtml(o.tipo)}</td>
-      <td class="mono">${fmt(o.valor)}</td>
+      <td class="mono">${o.hora||'—'}</td><td style="font-weight:500">${o.entregador}</td>
+      <td class="mono">${o.pedido}</td><td>${o.estabelecimento}</td>
+      <td>${badgeHtml(o.tipo)}</td><td class="mono">${fmt(o.valor)}</td>
       <td>${impactoHtml(o.tipo)}</td>
       <td style="color:var(--text2);font-size:12px">${o.registrado_por||'—'}</td>
       <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
@@ -867,77 +1098,64 @@ async function renderFechamento(){
 // PF CART
 async function renderPfCart(){
   const filtro=document.getElementById('pfc-data').value||todayStr();
-  const totalBox=document.getElementById('pfc-total-box');
-  const listaEl=document.getElementById('pfc-lista');
-  totalBox.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
-  listaEl.innerHTML='';
-  let query=sb.from('ocorrencias').select('*').eq('tipo','pf-cart').order('data',{ascending:false}).order('created_at',{ascending:false});
-  if(filtro)query=query.eq('data',filtro);
-  const{data,error}=await query;
-  if(error){totalBox.innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
+  const tb=document.getElementById('pfc-total-box'),le=document.getElementById('pfc-lista');
+  tb.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';le.innerHTML='';
+  let q=sb.from('ocorrencias').select('*').eq('tipo','pf-cart').order('data',{ascending:false}).order('created_at',{ascending:false});
+  if(filtro)q=q.eq('data',filtro);
+  const{data}=await q;
   const lista=data||[];
   const total=lista.reduce((s,o)=>s+parseFloat(o.valor),0);
-  totalBox.innerHTML=`
-    <div style="font-size:11px;font-weight:600;color:var(--indigo);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${filtro?'Total do dia '+fmtDate(filtro):'Total acumulado (todos os dias)'}</div>
+  tb.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--indigo);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${filtro?'Total do dia '+fmtDate(filtro):'Total acumulado'}</div>
     <div class="pf-cart-total">${fmt(total)}</div>
     <div class="pf-cart-sub">${lista.length} registro${lista.length!==1?'s':''}</div>
     <button class="btn" style="font-size:12px;padding:5px 14px;" onclick="toggleFiltroPfc()">${filtro?'Ver todos os dias':'Filtrar por data'}</button>`;
-  if(!lista.length){listaEl.innerHTML='<div class="empty">Nenhum registro para este filtro.</div>';return;}
-  const porData={};
-  lista.forEach(o=>{if(!porData[o.data])porData[o.data]=[];porData[o.data].push(o);});
-  listaEl.innerHTML=Object.entries(porData).map(([d,ocs])=>{
+  if(!lista.length){le.innerHTML='<div class="empty">Nenhum registro.</div>';return;}
+  const porData={};lista.forEach(o=>{if(!porData[o.data])porData[o.data]=[];porData[o.data].push(o);});
+  le.innerHTML=Object.entries(porData).map(([d,ocs])=>{
     const tot=ocs.reduce((s,o)=>s+parseFloat(o.valor),0);
-    return `<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="font-weight:600;font-size:14px;">${fmtDate(d)}</span>
-        <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--indigo);font-size:15px;">${fmt(tot)}</span>
-      </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Valor</th><th>Por</th><th>Obs.</th></tr></thead>
-        <tbody>${ocs.map(o=>`<tr>
-          <td class="mono">${o.hora||'—'}</td><td>${o.entregador}</td><td class="mono">${o.pedido}</td><td>${o.estabelecimento}</td>
-          <td class="mono" style="color:var(--indigo);font-weight:600">${fmt(o.valor)}</td>
-          <td style="color:var(--text2);font-size:12px">${o.registrado_por||'—'}</td>
-          <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-    </div>`;
-  }).join('');
+    return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font-weight:600">${fmtDate(d)}</span>
+      <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--indigo)">${fmt(tot)}</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Valor</th><th>Por</th><th>Obs.</th></tr></thead>
+      <tbody>${ocs.map(o=>`<tr>
+        <td class="mono">${o.hora||'—'}</td><td>${o.entregador}</td><td class="mono">${o.pedido}</td><td>${o.estabelecimento}</td>
+        <td class="mono" style="color:var(--indigo);font-weight:600">${fmt(o.valor)}</td>
+        <td style="color:var(--text2);font-size:12px">${o.registrado_por||'—'}</td>
+        <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`;}).join('');
 }
 
 function toggleFiltroPfc(){
   const inp=document.getElementById('pfc-data');
-  if(inp.value){inp.value='';}else{inp.value=todayStr();}
-  renderPfCart();
+  inp.value=inp.value?'':todayStr();renderPfCart();
 }
 
-// EXPORTAR EXCEL
+// EXPORTAR
 async function exportarExcel(){
   const filtro=document.getElementById('fc-data').value||todayStr();
   const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
+  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro).order('hora_abertura');
   const wb=XLSX.utils.book_new();
-  // aba ocorrências
-  const ocsRows=[[' Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Registrado por','Obs.']];
-  (ocs||[]).forEach(o=>{
-    const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':SEPARADOS.includes(o.tipo)?'Separado':'—';
-    ocsRows.push([o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),imp,o.registrado_por||'',o.obs||'']);
-  });
-  const ws1=XLSX.utils.aoa_to_sheet(ocsRows);
-  XLSX.utils.book_append_sheet(wb,ws1,'Ocorrências');
-  // aba turnos
+  const ocsRows=[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Registrado por','Obs.']];
+  (ocs||[]).forEach(o=>{const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':SEPARADOS.includes(o.tipo)?'Separado':'—';ocsRows.push([o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),imp,o.registrado_por||'',o.obs||'']);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ocsRows),'Ocorrências');
   const tRows=[['Operador','Abertura','Fechamento','Valor Abertura','Valor Fechamento','Status']];
   (turnos||[]).forEach(t=>tRows.push([t.operador,t.hora_abertura,t.hora_fechamento||'',parseFloat(t.valor_abertura),t.valor_fechamento!=null?parseFloat(t.valor_fechamento):'',t.status]));
-  const ws2=XLSX.utils.aoa_to_sheet(tRows);
-  XLSX.utils.book_append_sheet(wb,ws2,'Turnos');
-  XLSX.writeFile(wb,`MaisDelivery_${filtro}.xlsx`);
-  toast('Excel exportado!');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(tRows),'Turnos operadores');
+  const eRows=[['Entregador','Bag','Máquina','Abertura','Fechamento','Valor Saída','Complemento','Chuva','Status','Obs.']];
+  (entTurnos||[]).forEach(t=>eRows.push([t.entregador,t.bag||'',t.maquina||'',t.hora_abertura,t.hora_fechamento||'',parseFloat(t.valor_abertura),parseFloat(t.complemento||0),t.chuva?'Sim':'Não',t.status,t.obs||'']));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(eRows),'Entregadores');
+  XLSX.writeFile(wb,`MaisDelivery_${filtro}.xlsx`);toast('Excel exportado!');
 }
 
-// EXPORTAR PDF
 async function exportarPDF(){
   const filtro=document.getElementById('fc-data').value||todayStr();
   const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
+  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro).order('hora_abertura');
   const{data:dia}=await sb.from('caixa_dia').select('*').eq('data',filtro).maybeSingle();
   const lista=ocs||[];
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
@@ -951,21 +1169,16 @@ async function exportarPDF(){
   doc.text('Mais Delivery — Fechamento de Caixa',14,16);
   doc.setFontSize(11);doc.setFont(undefined,'normal');
   doc.text(`Data: ${fmtDate(filtro)}`,14,24);
-  let y=32;
-  if(inicial!=null){doc.text(`Valor inicial: ${fmt(inicial)}   Débitos: -${fmt(totalDebita)}   Esperado: ${fmt(esperado||0)}   Final: ${final_!=null?fmt(final_):'—'}   Diferença: ${difReal!=null?(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',','):'—'}`,14,y);y+=10;}
-  doc.autoTable({
-    startY:y+2,
-    head:[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Por','Obs.']],
-    body:lista.map(o=>{
-      const imp=DEBITA.includes(o.tipo)?'Débita':o.tipo===PF_CART?'Cartão':SEPARADOS.includes(o.tipo)?'Sep.':'—';
-      return[o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),fmt(o.valor),imp,o.registrado_por||'',o.obs||''];
-    }),
-    styles:{fontSize:8},
-    headStyles:{fillColor:[232,69,30]},
-    alternateRowStyles:{fillColor:[250,249,247]},
-  });
-  doc.save(`MaisDelivery_${filtro}.pdf`);
-  toast('PDF exportado!');
+  let y=30;
+  if(inicial!=null){doc.text(`Inicial: ${fmt(inicial)}  |  Débitos: -${fmt(totalDebita)}  |  Esperado: ${fmt(esperado||0)}  |  Final: ${final_!=null?fmt(final_):'—'}  |  Diferença: ${difReal!=null?(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',','):'—'}`,14,y);y+=8;}
+  doc.setFontSize(12);doc.setFont(undefined,'bold');doc.text('Ocorrências',14,y+4);y+=8;
+  doc.autoTable({startY:y,head:[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Por']],body:lista.map(o=>[o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),fmt(o.valor),DEBITA.includes(o.tipo)?'Débita':o.tipo===PF_CART?'Cart.':SEPARADOS.includes(o.tipo)?'Sep.':'—',o.registrado_por||'']),styles:{fontSize:8},headStyles:{fillColor:[232,69,30]},alternateRowStyles:{fillColor:[250,249,247]}});
+  if(entTurnos&&entTurnos.length){
+    doc.addPage();
+    doc.setFontSize(12);doc.setFont(undefined,'bold');doc.text('Entregadores do dia',14,16);
+    doc.autoTable({startY:22,head:[['Entregador','Bag','Máquina','Abertura','Fechamento','Saída','Complemento','Chuva','Status']],body:entTurnos.map(t=>[t.entregador,t.bag||'—',t.maquina||'—',t.hora_abertura,t.hora_fechamento||'—',fmt(t.valor_abertura),parseFloat(t.complemento||0)>0?fmt(t.complemento):'—',t.chuva?'Sim':'Não',t.status]),styles:{fontSize:8},headStyles:{fillColor:[37,99,235]},alternateRowStyles:{fillColor:[250,249,247]}});
+  }
+  doc.save(`MaisDelivery_${filtro}.pdf`);toast('PDF exportado!');
 }
 
 // TEMPO REAL
@@ -980,7 +1193,14 @@ sb.channel('md-rt')
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'turnos'},()=>{
     if(!currentUser)return;
+    carregarMeuTurno();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
+    if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
+  })
+  .on('postgres_changes',{event:'*',schema:'public',table:'entregadores_turno'},()=>{
+    if(!currentUser)return;
+    if(document.getElementById('sec-ctrl-ent').classList.contains('active'))renderCtrlEnt();
     if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
     if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
   })
