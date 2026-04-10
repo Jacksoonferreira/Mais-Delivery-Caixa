@@ -704,16 +704,17 @@ function atualizarBloqueioCtrl(){
 // CONTROLE DE ENTREGADORES
 let entregadoresList=[];
 async function abrirAutomaticos(){
-  // Abre entregadores fixos automaticamente após 07:00
+  // Roda apenas uma vez por sessão para evitar duplicatas
+  if(automaticosJaRodaram)return;
+  automaticosJaRodaram=true;
   const hora=brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   if(hora<'07:00')return;
   const{data:fixos}=await sb.from('entregadores').select('*').eq('ativo',true).eq('abertura_automatica',true);
   if(!fixos||!fixos.length)return;
   for(const ent of fixos){
-    // Verifica se já está aberto (sem data filter - persiste entre dias)
-    const{data:jaAberto}=await sb.from('entregadores_turno').select('id').eq('entregador',ent.nome).eq('status','aberto').maybeSingle();
-    if(!jaAberto){
-      // Abre automaticamente às 07:00
+    // Verifica se já está aberto — dupla verificação para evitar duplicata
+    const{data:jaAbertos}=await sb.from('entregadores_turno').select('id').eq('entregador',ent.nome).eq('status','aberto');
+    if(!jaAbertos||jaAbertos.length===0){
       await sb.from('entregadores_turno').insert({
         data:todayStr(),entregador:ent.nome,operador:'Sistema',
         hora_abertura:'07:00',bag:ent.bag||'',maquina:ent.maquina_fixa||'',
@@ -1528,6 +1529,9 @@ async function exportarPDF(){
   doc.save(`MaisDelivery_${filtro}.pdf`);toast('PDF exportado!');
 }
 
+
+// Trava para abrirAutomaticos rodar só uma vez por sessão
+let automaticosJaRodaram = false;
 
 // ═══════════════════════════════════════════
 // LOG DE AÇÕES
