@@ -666,6 +666,7 @@ function renderEntGrid(turnosMap){
         <div class="ent-actions">
           ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
           ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}')">■ Encerrar</button>`:''}
+          ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-amber" onclick="reabrirEntregador(${t.id},'${e.nome.replace(/'/g,"\\'")}')">↺ Reabrir</button>`:''}
           ${(isAdmin()||canCad())?`<button class="btn btn-sm" onclick="editarBagCadastro('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
         </div>
       </div>
@@ -722,6 +723,14 @@ async function salvarComplemento(id){
   const{error}=await sb.from('entregadores_turno').update({complemento:val}).eq('id',id);
   if(error){toast('Erro ao salvar.','erro');return;}
   toast('Complemento atualizado!');renderCtrlEnt();
+}
+
+async function reabrirEntregador(id,nome){
+  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
+  if(!confirm(`Reabrir ${nome}? O horário de fechamento será removido.`))return;
+  const{error}=await sb.from('entregadores_turno').update({hora_fechamento:null,chuva:false,obs:'',status:'aberto'}).eq('id',id);
+  if(error){toast('Erro ao reabrir.','erro');return;}
+  toast(`${nome} reaberto!`);renderCtrlEnt();
 }
 
 async function editarBagCadastro(nome,bagAtual){
