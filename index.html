@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--bg:#f5f4f0;--surface:#fff;--surface2:#f0ede6;--border:#e2ddd6;--border2:#ccc8c0;--text:#1a1916;--text2:#6b6860;--text3:#9c9a95;--accent:#e8451e;--blue:#2563eb;--blue-bg:#eff6ff;--green:#16a34a;--green-bg:#f0fdf4;--amber:#d97706;--amber-bg:#fffbeb;--pink:#9d174d;--pink-bg:#fdf2f8;--red:#dc2626;--red-bg:#fef2f2;--purple:#7c3aed;--purple-bg:#f5f3ff;--teal:#0d9488;--teal-bg:#f0fdfa;--indigo:#4338ca;--indigo-bg:#eef2ff;--yellow:#a16207;--yellow-bg:#fef9c3;--radius:10px;--radius-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);--shadow:0 4px 16px rgba(0,0,0,.10);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -216,10 +217,30 @@ tr:hover td{background:#fafaf8;}
 
     <!-- DASHBOARD -->
     <div id="sec-dashboard" class="section">
-      <div class="sec-header"><div class="sec-title">Dashboard</div><span class="mono" id="dash-date-label" style="font-size:12px;color:var(--text3)"></span></div>
+      <div class="sec-header">
+        <div class="sec-title">Dashboard</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="date" class="date-input" id="dash-data" onchange="renderDashboard()">
+          <button class="btn btn-sm" onclick="document.getElementById('dash-data').value=todayStr();renderDashboard()">Hoje</button>
+        </div>
+      </div>
       <div class="dash-grid" id="dash-grid"></div>
+      <div class="row2" style="margin-bottom:1rem;">
+        <div class="card">
+          <div class="card-title">Débitos por entregador</div>
+          <div id="chart-entregadores" style="min-height:200px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Ocorrências por tipo</div>
+          <canvas id="chart-tipos" style="max-height:260px;"></canvas>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="card-title">Evolução de débitos ao longo do dia</div>
+        <canvas id="chart-evolucao" style="max-height:220px;"></canvas>
+      </div>
       <div class="row2">
-        <div class="card"><div class="card-title">Turnos de hoje</div><div id="dash-turnos"></div></div>
+        <div class="card"><div class="card-title">Turnos do dia</div><div id="dash-turnos"></div></div>
         <div class="card"><div class="card-title">Últimas ocorrências</div><div id="dash-ultimas"></div></div>
       </div>
     </div>
@@ -512,6 +533,7 @@ async function mostrarApp(){
   document.getElementById('f-operador').value=currentUser.nome;
   document.getElementById('fc-data').value=todayStr();
   document.getElementById('pfc-data').value=todayStr();
+  document.getElementById('dash-data').value=todayStr();
   buildNav();
   const tick=()=>{
     document.getElementById('header-clock').textContent=brDate().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+' • '+nowTimeFull();
@@ -786,31 +808,99 @@ async function removerEntregador(id,nome){
 }
 
 // DASHBOARD
+let chartTipos=null,chartEvolucao=null;
 async function renderDashboard(){
-  document.getElementById('dash-date-label').textContent=fmtDate(todayStr());
-  const{data:ocs}=await sb.from('ocorrencias').select('tipo,valor').eq('data',todayStr());
-  const{data:turnos}=await sb.from('turnos').select('*').eq('data',todayStr()).order('hora_abertura');
-  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',todayStr());
+  const filtro=document.getElementById('dash-data').value||todayStr();
+  const isHoje=filtro===todayStr();
+  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
+  const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
+  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro);
   const lista=ocs||[];
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
   const emRota=(entTurnos||[]).filter(t=>t.status==='aberto').length;
+  const totalEnc=(entTurnos||[]).filter(t=>t.status==='fechado').length;
+
+  // CARDS
   document.getElementById('dash-grid').innerHTML=`
     <div class="dash-card" style="border-color:var(--accent)"><div class="dash-val" style="color:var(--accent)">${fmt(totalDebita)}</div><div class="dash-lbl">Total débitos</div></div>
     <div class="dash-card" style="border-color:var(--green)"><div class="dash-val" style="color:var(--green)">${emRota}</div><div class="dash-lbl">Entregadores em rota</div></div>
-    <div class="dash-card" style="border-color:var(--blue)"><div class="dash-val" style="color:var(--blue)">${(turnos||[]).filter(t=>t.status==='aberto').length}</div><div class="dash-lbl">Turnos abertos</div></div>
-    <div class="dash-card" style="border-color:var(--purple)"><div class="dash-val" style="color:var(--purple)">${lista.length}</div><div class="dash-lbl">Ocorrências hoje</div></div>`;
+    <div class="dash-card" style="border-color:var(--blue)"><div class="dash-val" style="color:var(--blue)">${totalEnc}</div><div class="dash-lbl">Entregadores encerrados</div></div>
+    <div class="dash-card" style="border-color:var(--purple)"><div class="dash-val" style="color:var(--purple)">${lista.length}</div><div class="dash-lbl">Ocorrências no dia</div></div>`;
+
+  // GRÁFICO 1: Débitos por entregador (barras horizontais)
+  const debitosEnt={};
+  lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
+    debitosEnt[o.entregador]=(debitosEnt[o.entregador]||0)+parseFloat(o.valor);
+  });
+  const entSorted=Object.entries(debitosEnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const elEnt=document.getElementById('chart-entregadores');
+  if(!entSorted.length){
+    elEnt.innerHTML='<div class="empty">Nenhum débito registrado.</div>';
+  } else {
+    const maxVal=entSorted[0][1];
+    elEnt.innerHTML=entSorted.map(([nome,val])=>`
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+          <span style="font-weight:500;color:var(--text)">${nome}</span>
+          <span style="font-family:'DM Mono',monospace;color:var(--red);font-weight:600">${fmt(val)}</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;">
+          <div style="background:var(--red);height:100%;border-radius:4px;width:${Math.round((val/maxVal)*100)}%;transition:width .4s;"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  // GRÁFICO 2: Ocorrências por tipo (donut via Chart.js)
+  const tipoCount={};
+  lista.forEach(o=>tipoCount[o.tipo]=(tipoCount[o.tipo]||0)+1);
+  const tipoLabels=Object.keys(tipoCount).map(t=>tipoLabel(t));
+  const tipoData=Object.values(tipoCount);
+  const tipoCores=['#e8451e','#2563eb','#d97706','#16a34a','#7c3aed','#0d9488','#4338ca','#a16207'];
+  if(typeof Chart!=='undefined'){
+    const ctx2=document.getElementById('chart-tipos').getContext('2d');
+    if(chartTipos){chartTipos.destroy();}
+    if(!tipoData.length){
+      document.getElementById('chart-tipos').parentElement.innerHTML='<div class="card-title">Ocorrências por tipo</div><div class="empty">Nenhuma ocorrência.</div>';
+    } else {
+      chartTipos=new Chart(ctx2,{type:'doughnut',data:{labels:tipoLabels,datasets:[{data:tipoData,backgroundColor:tipoCores,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}}}});
+    }
+  }
+
+  // GRÁFICO 3: Evolução dos débitos por hora
+  const horaMap={};
+  for(let h=0;h<24;h++) horaMap[String(h).padStart(2,'0')]=0;
+  lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
+    if(o.hora){const h=o.hora.slice(0,2);if(horaMap[h]!==undefined)horaMap[h]+=parseFloat(o.valor);}
+  });
+  // pegar só horas com dados ou horas do dia atual até agora
+  const horaAtual=parseInt(brDate().toLocaleTimeString('pt-BR',{hour:'2-digit'}));
+  const limiteHora=isHoje?horaAtual+1:24;
+  const horasLabels=Object.keys(horaMap).filter(h=>parseInt(h)<limiteHora);
+  const horasData=horasLabels.map(h=>horaMap[h]);
+  // acumulado
+  let acc=0;
+  const horasAcc=horasData.map(v=>{acc+=v;return parseFloat(acc.toFixed(2));});
+  if(typeof Chart!=='undefined'){
+    const ctx3=document.getElementById('chart-evolucao').getContext('2d');
+    if(chartEvolucao){chartEvolucao.destroy();}
+    chartEvolucao=new Chart(ctx3,{type:'line',data:{labels:horasLabels.map(h=>h+'h'),datasets:[{label:'Débito acumulado',data:horasAcc,borderColor:'#e8451e',backgroundColor:'rgba(232,69,30,0.08)',tension:0.3,fill:true,pointBackgroundColor:'#e8451e',pointRadius:4},{label:'Débito por hora',data:horasData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.05)',tension:0.3,fill:false,pointBackgroundColor:'#2563eb',pointRadius:3}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'R$'+v.toFixed(0)}}}}});
+  }
+
+  // TURNOS
   const dt=document.getElementById('dash-turnos');
-  if(!turnos||!turnos.length){dt.innerHTML='<div class="empty">Nenhum turno hoje.</div>';}
+  if(!turnos||!turnos.length){dt.innerHTML='<div class="empty">Nenhum turno nesta data.</div>';}
   else{dt.innerHTML=turnos.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
     <span style="font-weight:500">${t.operador}</span>
     <span style="display:flex;align-items:center;gap:8px;"><span class="mono" style="font-size:12px;color:var(--text2)">${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}</span>
     <span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Aberto':'Fechado'}</span></span>
   </div>`).join('');}
-  const{data:ultimas}=await sb.from('ocorrencias').select('*').eq('data',todayStr()).order('created_at',{ascending:false}).limit(5);
+
+  // ÚLTIMAS
+  const{data:ultimas}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at',{ascending:false}).limit(6);
   const du=document.getElementById('dash-ultimas');
-  if(!ultimas||!ultimas.length){du.innerHTML='<div class="empty">Nenhuma ocorrência hoje.</div>';}
+  if(!ultimas||!ultimas.length){du.innerHTML='<div class="empty">Nenhuma ocorrência nesta data.</div>';}
   else{du.innerHTML=ultimas.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
-    <span><span style="font-weight:500">${o.entregador}</span> <span style="color:var(--text2);font-size:12px">via ${o.registrado_por}</span></span>
+    <span><span style="font-weight:500">${o.entregador}</span><br><span style="color:var(--text2);font-size:11px">${o.hora||''} via ${o.registrado_por}</span></span>
     <span style="display:flex;align-items:center;gap:6px;">${badgeHtml(o.tipo)}<span class="mono">${fmt(o.valor)}</span></span>
   </div>`).join('');}
 }
