@@ -591,7 +591,7 @@ async function renderCtrlEnt(){
   if(!podeAgir())return;
   const el=document.getElementById('ent-grid');
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
-  const{data:ents}=await sb.from('entregadores').select('nome').eq('ativo',true).order('nome');
+  const{data:ents}=await sb.from('entregadores').select('nome,bag').eq('ativo',true).order('nome');
   const{data:turnos}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).order('hora_abertura');
   entregadoresList=ents||[];
   const turnosMap={};
@@ -603,7 +603,14 @@ async function renderCtrlEnt(){
 function renderEntGrid(turnosMap){
   const filtro=document.getElementById('filtro-ent').value.toLowerCase();
   const el=document.getElementById('ent-grid');
-  const lista=entregadoresList.filter(e=>e.nome.toLowerCase().includes(filtro));
+  let lista=entregadoresList.filter(e=>e.nome.toLowerCase().includes(filtro));
+  // ordenar: em rota → livre → encerrado
+  lista=lista.sort((a,b)=>{
+    const sa=turnosMap[a.nome]?.status||'livre';
+    const sb2=turnosMap[b.nome]?.status||'livre';
+    const ord={'aberto':0,'livre':1,'fechado':2};
+    return (ord[sa]||1)-(ord[sb2]||1);
+  });
   if(!lista.length){el.innerHTML='<div class="empty">Nenhum entregador encontrado.</div>';return;}
   el.innerHTML=lista.map(e=>{
     const t=turnosMap[e.nome];
@@ -611,6 +618,7 @@ function renderEntGrid(turnosMap){
     const isAberto=status==='aberto';
     const isFechado=status==='fechado';
     const isChuva=t&&t.chuva;
+    const bagExibir=t?.bag||e.bag||'';
     return `<div class="ent-card ${isAberto?'aberto':''} ${isChuva?'chuva':''}">
       <div class="ent-card-header ${isAberto?'aberto':'fechado'}">
         <span class="ent-nome">${e.nome}</span>
@@ -620,18 +628,23 @@ function renderEntGrid(turnosMap){
       </div>
       <div class="ent-body">
         ${t?`<div class="ent-info-row">
-          ${t.bag?`<span class="ent-info">🎒 Bag ${t.bag}</span>`:''}
+          ${bagExibir?`<span class="ent-info">🎒 Bag ${bagExibir}</span>`:''}
           ${t.maquina?`<span class="ent-info">💳 ${t.maquina}</span>`:''}
           <span class="ent-info">🕐 ${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}</span>
           ${t.chuva?'<span class="ent-info">🌧️ Chuva</span>':''}
-          ${parseFloat(t.complemento||0)>0?`<span class="ent-info">+${fmt(t.complemento)}</span>`:''}
+          ${parseFloat(t.complemento||0)>0?`<span class="ent-info" style="color:var(--green);font-weight:600">+${fmt(t.complemento)}</span>`:''}
         </div>
         ${t.obs?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${t.obs}</div>`:''}
-        `:'<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Ainda não entrou hoje.</div>'}
+        ${isAberto?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">Complemento R$</label>
+          <input type="number" id="comp-${t.id}" value="${parseFloat(t.complemento||0).toFixed(2)}" step="0.01" min="0" style="width:100px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;">
+          <button class="btn btn-sm btn-green" onclick="salvarComplemento(${t.id})">Salvar</button>
+        </div>`:''}
+        `:`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Ainda não entrou hoje.</div>`}
         <div class="ent-actions">
-          ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
+          ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
           ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}')">■ Encerrar</button>`:''}
-          ${(isAdmin()||canCad())&&t?`<button class="btn btn-sm" onclick="editarBag(${t.id},'${(t.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
+          ${(isAdmin()||canCad())?`<button class="btn btn-sm" onclick="editarBagCadastro('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
         </div>
       </div>
     </div>`;
@@ -647,7 +660,8 @@ async function filtrarEntregadores(){
 function abrirModalAdicionar(){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   const sel=document.getElementById('m-entregador');
-  sel.innerHTML='<option value="">Selecione...</option>'+entregadoresList.map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Selecione...</option>'+entregadoresList.map(e=>`<option value="${e.nome}" data-bag="${e.bag||''}">${e.nome}</option>`).join('');
+  sel.onchange=()=>{const opt=sel.options[sel.selectedIndex];document.getElementById('m-bag').value=opt.dataset.bag||'';};
   document.getElementById('m-bag').value='';
   document.getElementById('m-maquina').value='';
   document.getElementById('m-valor').value='100';
@@ -670,34 +684,31 @@ async function confirmarAbrirEnt(){
   if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
 }
 
-function abrirEntregador(nome){
+function abrirEntregador(nome,bagCadastro){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   const sel=document.getElementById('m-entregador');
   sel.innerHTML=`<option value="${nome}">${nome}</option>`;
-  document.getElementById('m-bag').value='';
+  document.getElementById('m-bag').value=bagCadastro||'';
   document.getElementById('m-maquina').value='';
   document.getElementById('m-valor').value='100';
   document.getElementById('m-complemento').value='0';
   document.getElementById('modal-abrir-ent').classList.add('open');
 }
 
-function iniciarFecharEnt(id,nome){
-  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
-  entParaFechar=id;
-  document.getElementById('modal-fechar-titulo').textContent=`Encerrar — ${nome}`;
-  document.getElementById('m-chuva').value='false';
-  document.getElementById('m-obs').value='';
-  document.getElementById('modal-fechar-ent').classList.add('open');
+async function salvarComplemento(id){
+  const val=parseFloat(document.getElementById('comp-'+id).value)||0;
+  const{error}=await sb.from('entregadores_turno').update({complemento:val}).eq('id',id);
+  if(error){toast('Erro ao salvar.','erro');return;}
+  toast('Complemento atualizado!');renderCtrlEnt();
 }
 
-async function confirmarFecharEnt(){
-  const chuva=document.getElementById('m-chuva').value==='true';
-  const obs=document.getElementById('m-obs').value.trim();
-  const hora=nowTimeShort();
-  const{error}=await sb.from('entregadores_turno').update({hora_fechamento:hora,chuva,obs,status:'fechado'}).eq('id',entParaFechar);
-  if(error){toast('Erro ao encerrar.','erro');return;}
-  fecharModal('modal-fechar-ent');toast('Entregador encerrado!');renderCtrlEnt();
+async function editarBagCadastro(nome,bagAtual){
+  const novaBag=prompt('Bag fixa de '+nome+':',bagAtual);
+  if(novaBag===null)return;
+  await sb.from('entregadores').update({bag:novaBag.trim().toUpperCase()}).eq('nome',nome);
+  toast('Bag atualizada no cadastro!');renderCtrlEnt();
 }
+
 
 async function editarBag(id,bagAtual){
   const novaBag=prompt('Número da bag:',bagAtual);
@@ -711,7 +722,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('cli
 
 // SELECT ENTREGADORES
 async function carregarEntregadoresSelect(){
-  const{data}=await sb.from('entregadores').select('nome').eq('ativo',true).order('nome');
+  const{data}=await sb.from('entregadores').select('nome,bag').eq('ativo',true).order('nome');
   const sel=document.getElementById('f-entregador');
   if(!sel)return;
   sel.innerHTML='<option value="">Selecione...</option>'+(data||[]).map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
