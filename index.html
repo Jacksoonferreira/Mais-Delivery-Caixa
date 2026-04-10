@@ -509,7 +509,7 @@ function logout(){
 function buildNav(){
   const nav=document.getElementById('main-nav');
   let h='';
-  if(isAdmin()) h+=`<button class="tab" onclick="showTab('dashboard',this)">Dashboard</button>`;
+  h+=`<button class="tab" onclick="showTab('dashboard',this)">Dashboard</button>`;
   h+=`<button class="tab" onclick="showTab('ctrl-ent',this)">Entregadores</button>`;
   h+=`<button class="tab active" onclick="showTab('lancar',this)">Lançar ocorrência</button>`;
   h+=`<button class="tab" onclick="showTab('meu-turno',this)">Meu turno</button>`;
@@ -547,7 +547,8 @@ async function mostrarApp(){
   carregarEntregadoresSelect();
   renderLista();
   renderCtrlEnt();
-  if(isAdmin()){renderDashboard();carregarDia(todayStr()).then(()=>renderResumoTotal());}
+  renderDashboard();
+  if(isAdmin()){carregarDia(todayStr()).then(()=>renderResumoTotal());}
 }
 
 async function checkOnline(){
@@ -1392,7 +1393,7 @@ sb.channel('md-rt')
     if(!currentUser)return;
     renderLista();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
-    if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
     if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
     if(isAdmin()&&document.getElementById('sec-pf-cart').classList.contains('active'))renderPfCart();
   })
@@ -1400,13 +1401,13 @@ sb.channel('md-rt')
     if(!currentUser)return;
     carregarMeuTurno();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
-    if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
     if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'entregadores_turno'},()=>{
     if(!currentUser)return;
     if(document.getElementById('sec-ctrl-ent').classList.contains('active'))renderCtrlEnt();
-    if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
     if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
   })
   .subscribe();
