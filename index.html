@@ -709,6 +709,24 @@ async function editarBagCadastro(nome,bagAtual){
   toast('Bag atualizada no cadastro!');renderCtrlEnt();
 }
 
+function iniciarFecharEnt(id,nome){
+  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
+  entParaFechar=id;
+  document.getElementById('modal-fechar-titulo').textContent=`Encerrar — ${nome}`;
+  document.getElementById('m-chuva').value='false';
+  document.getElementById('m-obs').value='';
+  document.getElementById('modal-fechar-ent').classList.add('open');
+}
+
+async function confirmarFecharEnt(){
+  const chuva=document.getElementById('m-chuva').value==='true';
+  const obs=document.getElementById('m-obs').value.trim();
+  const hora=nowTimeShort();
+  const{error}=await sb.from('entregadores_turno').update({hora_fechamento:hora,chuva,obs,status:'fechado'}).eq('id',entParaFechar);
+  if(error){toast('Erro ao encerrar.','erro');return;}
+  fecharModal('modal-fechar-ent');toast('Entregador encerrado!');renderCtrlEnt();
+}
+
 
 async function editarBag(id,bagAtual){
   const novaBag=prompt('Número da bag:',bagAtual);
