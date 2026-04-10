@@ -557,7 +557,7 @@ const DEBITA=['din-cart','moeda','perdeu'];
 const SEPARADOS=['pf-din','sem-troco','cart-din','nao-pagou'];
 const PF_CART='pf-cart';
 
-let currentUser=null,clockInterval=null,meuTurnoAtual=null,entParaFechar=null;
+let currentUser=null,clockInterval=null,meuTurnoAtual=null,entParaFechar=null,entNomeParaFechar=null;
 const brDate=()=>new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
 const todayStr=()=>{const d=brDate();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const nowTimeShort=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -787,7 +787,8 @@ function renderEntGrid(turnosMap){
         <div class="ent-actions">
           ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}','${(e.maquina_fixa||'').replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
           ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}')">■ Encerrar</button>`:''}
-          ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-amber" onclick="reabrirEntregador(${t.id},'${e.nome.replace(/'/g,"\\'")}')">↺ Reabrir</button>`:''}
+          ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-amber" onclick="reabrirEntregador(${t.id},'${e.nome.replace(/'/g,"\\'")}')">↺ Desfazer</button>`:''}
+          ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-green" onclick="abrirEntregador('${e.nome.replace(/'/g,"\'")}','${(e.bag||'').replace(/'/g,"\'")}','${(e.maquina_fixa||'').replace(/'/g,"\'")}')">▶ Novo turno</button>`:''}
           ${(isAdmin()||canCad())?`<button class="btn btn-sm" onclick="editarBagCadastro('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
         </div>
       </div>
@@ -868,6 +869,7 @@ async function editarBagCadastro(nome,bagAtual){
 function iniciarFecharEnt(id,nome){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   entParaFechar=id;
+  entNomeParaFechar=nome;
   document.getElementById('modal-fechar-titulo').textContent=`Encerrar — ${nome}`;
   document.getElementById('m-chuva').value='false';
   document.getElementById('m-obs').value='';
@@ -878,9 +880,15 @@ async function confirmarFecharEnt(){
   const chuva=document.getElementById('m-chuva').value==='true';
   const obs=document.getElementById('m-obs').value.trim();
   const hora=nowTimeShort();
-  const{error}=await sb.from('entregadores_turno').update({hora_fechamento:hora,chuva,obs,status:'fechado'}).eq('id',entParaFechar);
-  if(error){toast('Erro ao encerrar.','erro');return;}
-  registrarLog(`Encerrou entregador — ID ${entParaFechar}`);
+  const btn=document.querySelector('#modal-fechar-ent .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Encerrando...';}
+  const{data,error}=await sb.from('entregadores_turno')
+    .update({hora_fechamento:hora,chuva,obs,status:'fechado',data_fechamento:todayStr()})
+    .eq('id',entParaFechar)
+    .select();
+  if(btn){btn.disabled=false;btn.textContent='Encerrar';}
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  registrarLog(`Encerrou entregador — ${entNomeParaFechar||'ID '+entParaFechar}`);
   fecharModal('modal-fechar-ent');toast('Entregador encerrado!');renderCtrlEnt();
 }
 
@@ -956,8 +964,20 @@ async function renderDashboard(){
   const totalEnc=(entTurnos||[]).filter(t=>t.status==='fechado').length;
 
   // Busca entregadores abertos (persistente) para calcular dinheiro
-  const{data:entAbertos}=await sb.from('entregadores_turno').select('valor_abertura,complemento').eq('status','aberto');
-  const totalComEnt=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento').eq('status','aberto');
+  // Busca débitos de hoje por entregador
+  const{data:ocsHoje}=await sb.from('ocorrencias').select('entregador,tipo,valor').eq('data',filtro);
+  // Calcula débitos por entregador em rota
+  const debitosEntMap={};
+  (ocsHoje||[]).filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
+    debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
+  });
+  // Com entregadores = saída + complemento - débitos já registrados
+  const totalComEnt=(entAbertos||[]).reduce((s,t)=>{
+    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
+    const debitos=debitosEntMap[t.entregador]||0;
+    return s+Math.max(0,saida-debitos);
+  },0);
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
   const totalNoCaixa=valorInicial!=null?valorInicial-totalComEnt:null;
@@ -1279,8 +1299,15 @@ async function renderResumoTotal(){
       <span class="resumo-val big ${difReal==null?'muted':difReal>=0?'green':'red'}">${difReal==null?'—':(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',',')}</span>
     </div>`;
   // SPLIT CAIXA / COM ENTREGADORES
-  const{data:entAbertosRes}=await sb.from('entregadores_turno').select('valor_abertura,complemento').eq('status','aberto');
-  const totalComEntRes=(entAbertosRes||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const{data:entAbertosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento').eq('status','aberto');
+  // Débitos dos entregadores em rota
+  const debitosEntRes={};
+  lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{debitosEntRes[o.entregador]=(debitosEntRes[o.entregador]||0)+parseFloat(o.valor);});
+  const totalComEntRes=(entAbertosRes||[]).reduce((s,t)=>{
+    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
+    const deb=debitosEntRes[t.entregador]||0;
+    return s+Math.max(0,saida-deb);
+  },0);
   const totalNoCaixaRes=inicial!=null?inicial-totalComEntRes:null;
   const splitExist=document.getElementById('split-caixa-ent');
   if(splitExist){splitExist.innerHTML=`
