@@ -6,6 +6,9 @@
 <title>Mais Delivery — Ocorrências de Caixa</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--bg:#f5f4f0;--surface:#fff;--surface2:#f0ede6;--border:#e2ddd6;--border2:#ccc8c0;--text:#1a1916;--text2:#6b6860;--text3:#9c9a95;--accent:#e8451e;--blue:#2563eb;--blue-bg:#eff6ff;--green:#16a34a;--green-bg:#f0fdf4;--amber:#d97706;--amber-bg:#fffbeb;--pink:#9d174d;--pink-bg:#fdf2f8;--red:#dc2626;--red-bg:#fef2f2;--purple:#7c3aed;--purple-bg:#f5f3ff;--teal:#0d9488;--teal-bg:#f0fdfa;--indigo:#4338ca;--indigo-bg:#eef2ff;--yellow:#a16207;--yellow-bg:#fef9c3;--radius:10px;--radius-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);--shadow:0 4px 16px rgba(0,0,0,.10);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -42,6 +45,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .card-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:1rem;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
 .field input,.field select{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;}
@@ -57,6 +61,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .btn-green:hover{background:#15803d;}
 .btn-danger{color:var(--red);border-color:#fca5a5;}
 .btn-danger:hover{background:var(--red-bg);}
+.btn-blue{background:var(--blue);color:white;border-color:var(--blue);}
+.btn-blue:hover{background:#1d4ed8;}
 .btn-sm{padding:4px 12px;font-size:12px;}
 .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
 .badge-dc{background:var(--green-bg);color:var(--green);}
@@ -81,13 +87,24 @@ tr:last-child td{border-bottom:none;}
 tr:hover td{background:#fafaf8;}
 .mono{font-family:'DM Mono',monospace;font-size:12px;}
 .metrics3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem;}
-.metrics2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem;}
+.metrics4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem;}
 .metric{background:var(--surface2);border-radius:var(--radius);padding:1rem;text-align:center;}
 .metric-val{font-size:18px;font-weight:600;margin-bottom:3px;font-family:'DM Mono',monospace;}
 .metric-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
-.metric-val.red{color:var(--red);}.metric-val.green{color:var(--green);}.metric-val.blue{color:var(--blue);}.metric-val.teal{color:var(--teal);}.metric-val.indigo{color:var(--indigo);}.metric-val.muted{color:var(--text3);}
+.metric-val.red{color:var(--red);}.metric-val.green{color:var(--green);}.metric-val.blue{color:var(--blue);}.metric-val.teal{color:var(--teal);}.metric-val.indigo{color:var(--indigo);}.metric-val.amber{color:var(--amber);}.metric-val.muted{color:var(--text3);}
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;}
+.dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;box-shadow:var(--shadow-sm);text-align:center;}
+.dash-val{font-size:26px;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;}
+.dash-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.dash-card.accent{border-color:var(--accent);background:linear-gradient(135deg,#fff5f3,#fff);}
+.dash-card.blue{border-color:var(--blue);background:linear-gradient(135deg,#eff6ff,#fff);}
+.dash-card.green{border-color:var(--green);background:linear-gradient(135deg,#f0fdf4,#fff);}
+.dash-card.purple{border-color:var(--purple);background:linear-gradient(135deg,#f5f3ff,#fff);}
+/* RESUMO */
 .resumo-geral{background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.5rem;box-shadow:var(--shadow-sm);}
-.resumo-header{background:var(--text);color:white;padding:12px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.resumo-header{background:var(--text);color:white;padding:12px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.resumo-header-left{display:flex;align-items:center;gap:8px;}
 .resumo-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);}
 .resumo-inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);}
 .resumo-linhas{padding:0 1.5rem;}
@@ -97,15 +114,19 @@ tr:hover td{background:#fafaf8;}
 .resumo-lbl{color:var(--text2);}
 .resumo-val{font-family:'DM Mono',monospace;font-weight:600;font-size:14px;}
 .resumo-val.big{font-size:22px;}.resumo-val.red{color:var(--red);}.resumo-val.green{color:var(--green);}.resumo-val.blue{color:var(--blue);}.resumo-val.muted{color:var(--text3);}
+/* ADMIN ONLY */
 .admin-only{background:var(--surface);border:1.5px solid var(--purple);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.5rem;box-shadow:var(--shadow-sm);}
 .admin-only-header{background:var(--purple);color:white;padding:12px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
 .admin-only-body{padding:1.25rem 1.5rem;}
-.admin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:0;}
-.admin-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:0;}
+.admin-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;}
+.admin-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:0;}
 .admin-metric{background:var(--purple-bg);border-radius:var(--radius);padding:1rem;text-align:center;border:1px solid #ddd6fe;}
-.admin-metric-val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);margin-bottom:3px;}
+.admin-metric-val{font-size:16px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);margin-bottom:3px;}
 .admin-metric-lbl{font-size:10px;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;}
-/* PF CART exclusivo */
+.admin-total-row{background:var(--purple-bg);border:1px solid #ddd6fe;border-radius:var(--radius);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+.admin-total-lbl{font-size:12px;color:#6d28d9;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.admin-total-val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);}
+/* PF CART */
 .pf-cart-section{background:var(--surface);border:1.5px solid var(--indigo);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.5rem;box-shadow:var(--shadow-sm);}
 .pf-cart-header{background:var(--indigo);color:white;padding:12px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
 .pf-cart-body{padding:1.25rem 1.5rem;}
@@ -117,6 +138,7 @@ tr:hover td{background:#fafaf8;}
 .sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px;}
 .sec-title{font-size:18px;font-weight:600;letter-spacing:-.3px;}
 .date-input{padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);cursor:pointer;}
+/* TURNO */
 .turno-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1rem;overflow:hidden;box-shadow:var(--shadow-sm);}
 .turno-header{background:var(--surface2);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
 .turno-nome{font-weight:600;font-size:14px;}
@@ -137,7 +159,15 @@ tr:hover td{background:#fafaf8;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.error{background:var(--red);}
 .app{display:none;}.app.visible{display:block;}
-@media(max-width:600px){.row2,.row3,.resumo-inputs,.metrics3,.metrics2,.admin-grid,.admin-grid-4{grid-template-columns:1fr;}.main{padding:1rem;}.tab{padding:10px 12px;font-size:12px;}.resumo-linhas{padding:0 1rem;}.resumo-inputs{padding:1rem;}}
+/* CONTADOR */
+.rank-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.rank-item:last-child{border-bottom:none;}
+.rank-num{font-family:'DM Mono',monospace;font-weight:600;color:var(--text3);width:24px;text-align:right;}
+.rank-nome{flex:1;font-weight:500;}
+.rank-val{font-family:'DM Mono',monospace;font-size:12px;}
+/* EXPORT BTNS */
+.export-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;}
+@media(max-width:600px){.row2,.row3,.row4,.resumo-inputs,.metrics3,.metrics4,.admin-grid-4,.admin-grid-5,.dash-grid{grid-template-columns:1fr;}.main{padding:1rem;}.tab{padding:10px 12px;font-size:12px;}.resumo-linhas{padding:0 1rem;}.resumo-inputs{padding:1rem;}}
 </style>
 </head>
 <body>
@@ -170,8 +200,27 @@ tr:hover td{background:#fafaf8;}
   <nav class="nav" id="main-nav"></nav>
   <main class="main">
 
+    <!-- DASHBOARD (admins) -->
+    <div id="sec-dashboard" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Dashboard</div>
+        <span class="mono" id="dash-date-label" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+      <div class="dash-grid" id="dash-grid"></div>
+      <div class="row2">
+        <div class="card">
+          <div class="card-title">Turnos de hoje</div>
+          <div id="dash-turnos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Últimas ocorrências</div>
+          <div id="dash-ultimas"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- LANÇAR -->
-    <div id="sec-lancar" class="section active">
+    <div id="sec-lancar" class="section">
       <div class="card">
         <div class="card-title">Nova ocorrência</div>
         <div class="row2">
@@ -180,7 +229,10 @@ tr:hover td{background:#fafaf8;}
         </div>
         <div class="row2">
           <div class="field"><label>Registrado por</label><input type="text" id="f-operador" readonly></div>
-          <div class="field"><label>Entregador</label><input type="text" id="f-entregador" placeholder="Nome do entregador"></div>
+          <div class="field">
+            <label>Entregador</label>
+            <select id="f-entregador"><option value="">Selecione o entregador...</option></select>
+          </div>
         </div>
         <div class="row2">
           <div class="field"><label>Nº do pedido</label><input type="text" id="f-pedido" placeholder="Ex: 57131175"></div>
@@ -196,7 +248,7 @@ tr:hover td{background:#fafaf8;}
                 <option value="moeda">Negativo por moedas</option>
                 <option value="perdeu">Entregador perdeu</option>
               </optgroup>
-              <optgroup label="— Registros separados (não afetam caixa) —">
+              <optgroup label="— Registros separados —">
                 <option value="pf-din">Pedido por fora pago em dinheiro</option>
                 <option value="pf-cart">Pedido por fora pago no cartão</option>
                 <option value="sem-troco">Estabelecimento sem troco</option>
@@ -230,19 +282,25 @@ tr:hover td{background:#fafaf8;}
       <div id="turno-form-wrap"></div>
     </div>
 
-    <!-- FECHAMENTO (só admins) -->
+    <!-- FECHAMENTO (admins) -->
     <div id="sec-fechamento" class="section">
       <div class="sec-header">
         <div class="sec-title">Fechamento do dia</div>
-        <input type="date" class="date-input" id="fc-data" onchange="renderFechamento()">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" class="date-input" id="fc-data" onchange="renderFechamento()">
+          <button class="btn btn-green btn-sm" onclick="exportarExcel()">Exportar Excel</button>
+          <button class="btn btn-blue btn-sm" onclick="exportarPDF()">Exportar PDF</button>
+        </div>
       </div>
       <div class="aviso">
         <strong>Débita do caixa:</strong> Dinheiro→Cartão <span class="tag tag-deb">débita</span> Moedas <span class="tag tag-deb">débita</span> Entregador perdeu <span class="tag tag-deb">débita</span><br>
-        <strong>Registros separados (não afetam caixa):</strong> Pedido fora (din.) <span class="tag tag-sep">separado</span> Estab. sem troco <span class="tag tag-sep">separado</span> Cartão→Dinheiro <span class="tag tag-sep">separado</span> Não pagou estab. <span class="tag tag-sep">separado</span><br>
+        <strong>Registros separados:</strong> Pedido fora (din.) <span class="tag tag-sep">separado</span> Estab. sem troco <span class="tag tag-sep">separado</span> Cartão→Dinheiro <span class="tag tag-sep">separado</span> Não pagou estab. <span class="tag tag-sep">separado</span><br>
         <strong>Aba exclusiva:</strong> Pedido fora (cartão) <span class="tag tag-pf">aba própria</span>
       </div>
       <div class="resumo-geral">
-        <div class="resumo-header"><span class="resumo-dot"></span>Resumo total do dia — caixa</div>
+        <div class="resumo-header">
+          <div class="resumo-header-left"><span class="resumo-dot"></span>Resumo total do dia — caixa</div>
+        </div>
         <div class="resumo-inputs">
           <div class="field" style="margin:0"><label>Valor inicial total (R$)</label><input type="number" id="fc-inicial" placeholder="Ex: 3650,00" step="0.01" min="0" oninput="salvarDia()"></div>
           <div class="field" style="margin:0"><label>Valor final total (R$)</label><input type="number" id="fc-final" placeholder="Preencher ao fechar o dia" step="0.01" min="0" oninput="salvarDia()"></div>
@@ -255,17 +313,20 @@ tr:hover td{background:#fafaf8;}
           Registros separados — não afetam o caixa
         </div>
         <div class="admin-only-body">
-          <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Valores registrados para controle — <strong>não entram no cálculo do caixa</strong>:</p>
+          <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Valores para controle — <strong>não entram no cálculo do caixa</strong>:</p>
           <div class="admin-grid-4" id="admin-metrics"></div>
+          <div class="admin-total-row" id="admin-total-row"></div>
         </div>
       </div>
+      <div class="sec-divider">Contador de ocorrências por entregador</div>
+      <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
       <div class="sec-divider">Detalhamento por turno / operador</div>
       <div id="fc-turnos"></div>
       <div class="sec-divider">Todas as ocorrências do dia</div>
       <div id="fc-ocorrencias"></div>
     </div>
 
-    <!-- PEDIDOS POR FORA CARTÃO (só admins) -->
+    <!-- PEDIDOS POR FORA CARTÃO (admins) -->
     <div id="sec-pf-cart" class="section">
       <div class="sec-header">
         <div class="sec-title">Pedidos por fora — Cartão</div>
@@ -277,13 +338,31 @@ tr:hover td{background:#fafaf8;}
           Total acumulado — Pedidos por fora pagos no cartão
         </div>
         <div class="pf-cart-body">
-          <div id="pfc-total-box">
-            <div class="loading"><div class="spinner"></div>Carregando...</div>
-          </div>
+          <div id="pfc-total-box"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
         </div>
       </div>
       <div class="sec-divider">Detalhamento dos registros</div>
       <div id="pfc-lista"></div>
+    </div>
+
+    <!-- CADASTRO DE ENTREGADORES (admins + Leonardo) -->
+    <div id="sec-entregadores" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Cadastro de entregadores</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Adicionar entregador</div>
+        <div class="row2">
+          <div class="field"><label>Nome do entregador</label><input type="text" id="cad-nome" placeholder="Nome completo em maiúsculas"></div>
+          <div class="field" style="display:flex;align-items:flex-end;">
+            <button class="btn btn-primary" style="width:100%" onclick="adicionarEntregador()">Adicionar</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Entregadores cadastrados</div>
+        <div id="lista-entregadores"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+      </div>
     </div>
 
   </main>
@@ -296,32 +375,28 @@ const SUPABASE_KEY='sb_publishable_1byMcTG-XuMRQ1l0fAtVKA_HIGx27bD';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 const USUARIOS=[
-  {nome:'Jackson',senha:'Mais080923@',role:'admin'},
-  {nome:'Lucas',  senha:'Mais080923@',role:'admin'},
-  {nome:'Luan',   senha:'Lec@305417', role:'operador'},
-  {nome:'Amanda', senha:'15902507',   role:'operador'},
-  {nome:'Leonardo',senha:'Pc160923@',role:'operador'},
+  {nome:'Jackson', senha:'Mais080923@',role:'admin'},
+  {nome:'Lucas',   senha:'Mais080923@',role:'admin'},
+  {nome:'Luan',    senha:'Lec@305417', role:'operador'},
+  {nome:'Amanda',  senha:'15902507',   role:'operador'},
+  {nome:'Leonardo',senha:'Pc160923@', role:'operador_cad'},
 ];
 
-// Só débita do caixa
 const DEBITA=['din-cart','moeda','perdeu'];
-// Registros separados — não afetam caixa, só admins veem total
 const SEPARADOS=['pf-din','sem-troco','cart-din','nao-pagou'];
-// Aba exclusiva
 const PF_CART='pf-cart';
 
 let currentUser=null,clockInterval=null;
-const brDate=()=>{const d=new Date();const br=new Date(d.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));return br;};
-const todayStr=()=>{const d=brDate();const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;};
+const brDate=()=>{const d=new Date();return new Date(d.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));};
+const todayStr=()=>{const d=brDate();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const nowTimeShort=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 const nowTimeFull=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const fmtDate=d=>d?d.split('-').reverse().join('/'):'—';
 const fmt=v=>'R$ '+Math.abs(parseFloat(v)||0).toFixed(2).replace('.',',');
 const isAdmin=()=>currentUser&&currentUser.role==='admin';
+const canCad=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='operador_cad');
 
-function loadSession(){
-  try{const s=sessionStorage.getItem('md_user_v6');if(s){currentUser=JSON.parse(s);mostrarApp();}}catch(e){}
-}
+function loadSession(){try{const s=sessionStorage.getItem('md_user_v7');if(s){currentUser=JSON.parse(s);mostrarApp();}}catch(e){}}
 
 function fazerLogin(){
   const nome=document.getElementById('login-user').value.trim();
@@ -329,11 +404,11 @@ function fazerLogin(){
   const user=USUARIOS.find(u=>u.nome.toLowerCase()===nome.toLowerCase()&&u.senha===senha);
   if(!user){document.getElementById('login-error').style.display='block';return;}
   document.getElementById('login-error').style.display='none';
-  currentUser=user;sessionStorage.setItem('md_user_v6',JSON.stringify(user));mostrarApp();
+  currentUser=user;sessionStorage.setItem('md_user_v7',JSON.stringify(user));mostrarApp();
 }
 
 function logout(){
-  sessionStorage.removeItem('md_user_v6');currentUser=null;
+  sessionStorage.removeItem('md_user_v7');currentUser=null;
   if(clockInterval)clearInterval(clockInterval);
   document.getElementById('app').classList.remove('visible');
   document.getElementById('login-wrap').style.display='flex';
@@ -342,13 +417,18 @@ function logout(){
 
 function buildNav(){
   const nav=document.getElementById('main-nav');
-  let h=`<button class="tab active" onclick="showTab('lancar',this)">Lançar ocorrência</button>`;
+  let h='';
+  if(isAdmin()) h+=`<button class="tab" onclick="showTab('dashboard',this)">Dashboard</button>`;
+  h+=`<button class="tab active" onclick="showTab('lancar',this)">Lançar ocorrência</button>`;
   h+=`<button class="tab" onclick="showTab('meu-turno',this)">Meu turno</button>`;
   if(isAdmin()){
     h+=`<button class="tab" onclick="showTab('fechamento',this)">Fechamento do dia</button>`;
     h+=`<button class="tab" onclick="showTab('pf-cart',this)">Pedidos fora (cartão)</button>`;
   }
+  if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Entregadores</button>`;
   nav.innerHTML=h;
+  // set active on lancar by default
+  nav.querySelector('.tab.active')||nav.querySelectorAll('.tab')[0].classList.add('active');
 }
 
 function updateRO(){
@@ -367,12 +447,18 @@ function mostrarApp(){
   document.getElementById('pfc-data').value=todayStr();
   buildNav();
   const tick=()=>{
-    document.getElementById('header-clock').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+' • '+nowTimeFull();
+    document.getElementById('header-clock').textContent=brDate().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+' • '+nowTimeFull();
     updateRO();
   };
   tick();clockInterval=setInterval(tick,1000);
-  checkOnline();renderLista();renderMeuTurno();
-  if(isAdmin())carregarDia(todayStr()).then(()=>renderResumoTotal());
+  checkOnline();
+  carregarEntregadoresSelect();
+  renderLista();
+  renderMeuTurno();
+  if(isAdmin()){
+    renderDashboard();
+    carregarDia(todayStr()).then(()=>renderResumoTotal());
+  }
 }
 
 async function checkOnline(){
@@ -391,9 +477,92 @@ function showTab(name,btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('sec-'+name).classList.add('active');
+  if(name==='dashboard')renderDashboard();
   if(name==='meu-turno')renderMeuTurno();
   if(name==='fechamento')renderFechamento();
   if(name==='pf-cart')renderPfCart();
+  if(name==='entregadores')renderEntregadores();
+}
+
+// ENTREGADORES
+async function carregarEntregadoresSelect(){
+  const{data}=await sb.from('entregadores').select('nome').eq('ativo',true).order('nome');
+  const sel=document.getElementById('f-entregador');
+  if(!sel)return;
+  sel.innerHTML='<option value="">Selecione o entregador...</option>'+(data||[]).map(e=>`<option value="${e.nome}">${e.nome}</option>`).join('');
+}
+
+async function renderEntregadores(){
+  const el=document.getElementById('lista-entregadores');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  const{data}=await sb.from('entregadores').select('*').order('nome');
+  if(!data||!data.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
+  el.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>Nome</th><th>Status</th><th></th></tr></thead>
+    <tbody>${data.map(e=>`<tr>
+      <td style="font-weight:500">${e.nome}</td>
+      <td><span class="badge ${e.ativo?'badge-fechado':'badge-perdeu'}">${e.ativo?'Ativo':'Inativo'}</span></td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-sm" onclick="toggleEntregador(${e.id},${e.ativo})">${e.ativo?'Desativar':'Reativar'}</button>
+        <button class="btn btn-sm btn-danger" onclick="removerEntregador(${e.id},'${e.nome.replace(/'/g,"\\'")}')">Remover</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+async function adicionarEntregador(){
+  const nome=document.getElementById('cad-nome').value.trim().toUpperCase();
+  if(!nome){toast('Informe o nome.','erro');return;}
+  const{error}=await sb.from('entregadores').insert({nome,ativo:true});
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  document.getElementById('cad-nome').value='';
+  toast('Entregador adicionado!');
+  renderEntregadores();carregarEntregadoresSelect();
+}
+
+async function toggleEntregador(id,ativo){
+  await sb.from('entregadores').update({ativo:!ativo}).eq('id',id);
+  renderEntregadores();carregarEntregadoresSelect();
+}
+
+async function removerEntregador(id,nome){
+  if(!confirm(`Remover "${nome}" permanentemente?`))return;
+  await sb.from('entregadores').delete().eq('id',id);
+  toast('Entregador removido.');renderEntregadores();carregarEntregadoresSelect();
+}
+
+// DASHBOARD
+async function renderDashboard(){
+  document.getElementById('dash-date-label').textContent=fmtDate(todayStr());
+  const{data:ocs}=await sb.from('ocorrencias').select('tipo,valor').eq('data',todayStr());
+  const{data:turnos}=await sb.from('turnos').select('*').eq('data',todayStr()).order('hora_abertura');
+  const lista=ocs||[];
+  const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  const abertos=(turnos||[]).filter(t=>t.status==='aberto').length;
+  const totalOcs=lista.length;
+  document.getElementById('dash-grid').innerHTML=`
+    <div class="dash-card accent"><div class="dash-val" style="color:var(--accent)">${fmt(totalDebita)}</div><div class="dash-lbl">Total débitos do dia</div></div>
+    <div class="dash-card blue"><div class="dash-val" style="color:var(--blue)">${abertos}</div><div class="dash-lbl">Turnos em andamento</div></div>
+    <div class="dash-card green"><div class="dash-val" style="color:var(--green)">${(turnos||[]).filter(t=>t.status==='fechado').length}</div><div class="dash-lbl">Turnos encerrados</div></div>
+    <div class="dash-card purple"><div class="dash-val" style="color:var(--purple)">${totalOcs}</div><div class="dash-lbl">Ocorrências hoje</div></div>`;
+  // turnos
+  const dt=document.getElementById('dash-turnos');
+  if(!turnos||!turnos.length){dt.innerHTML='<div class="empty">Nenhum turno hoje.</div>';}
+  else{dt.innerHTML=turnos.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+    <span style="font-weight:500">${t.operador}</span>
+    <span style="display:flex;align-items:center;gap:8px;">
+      <span class="mono" style="font-size:12px;color:var(--text2)">${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}</span>
+      <span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Aberto':'Fechado'}</span>
+    </span>
+  </div>`).join('');}
+  // últimas ocorrências
+  const{data:ultimas}=await sb.from('ocorrencias').select('*').eq('data',todayStr()).order('created_at',{ascending:false}).limit(5);
+  const du=document.getElementById('dash-ultimas');
+  if(!ultimas||!ultimas.length){du.innerHTML='<div class="empty">Nenhuma ocorrência hoje.</div>';}
+  else{du.innerHTML=ultimas.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+    <span><span style="font-weight:500">${o.entregador}</span> <span style="color:var(--text2);font-size:12px">via ${o.registrado_por}</span></span>
+    <span style="display:flex;align-items:center;gap:8px;">${badgeHtml(o.tipo)}<span class="mono">${fmt(o.valor)}</span></span>
+  </div>`).join('');}
 }
 
 function atualizarDica(){
@@ -414,27 +583,15 @@ function atualizarDica(){
   else el.style.display='none';
 }
 
-const badgeHtml=t=>({
-  'din-cart': '<span class="badge badge-dc">Dinheiro→Cartão</span>',
-  'cart-din': '<span class="badge badge-cd">Cartão→Dinheiro</span>',
-  'nao-pagou':'<span class="badge badge-np">Não pagou estab.</span>',
-  'moeda':    '<span class="badge badge-mo">Moedas</span>',
-  'perdeu':   '<span class="badge badge-perdeu">Entregador perdeu</span>',
-  'pf-din':   '<span class="badge badge-pf-din">Pedido fora (din.)</span>',
-  'pf-cart':  '<span class="badge badge-pf-cart">Pedido fora (cart.)</span>',
-  'sem-troco':'<span class="badge badge-st">Estab. sem troco</span>',
-}[t]||t);
+const badgeHtml=t=>({'din-cart':'<span class="badge badge-dc">Dinheiro→Cartão</span>','cart-din':'<span class="badge badge-cd">Cartão→Dinheiro</span>','nao-pagou':'<span class="badge badge-np">Não pagou estab.</span>','moeda':'<span class="badge badge-mo">Moedas</span>','perdeu':'<span class="badge badge-perdeu">Entregador perdeu</span>','pf-din':'<span class="badge badge-pf-din">Pedido fora (din.)</span>','pf-cart':'<span class="badge badge-pf-cart">Pedido fora (cart.)</span>','sem-troco':'<span class="badge badge-st">Estab. sem troco</span>'}[t]||t);
 
-const impactoHtml=t=>{
-  if(DEBITA.includes(t)) return '<span style="font-size:11px;font-weight:700;color:var(--red);">débita caixa</span>';
-  if(t===PF_CART)        return '<span style="font-size:11px;font-weight:700;color:var(--indigo);">aba cartão</span>';
-  if(SEPARADOS.includes(t)) return '<span style="font-size:11px;font-weight:700;color:var(--purple);">separado</span>';
-  return '<span style="font-size:11px;color:var(--text3);">—</span>';
-};
+const tipoLabel=t=>({'din-cart':'Dinheiro→Cartão','cart-din':'Cartão→Dinheiro','nao-pagou':'Não pagou estab.','moeda':'Moedas','perdeu':'Entregador perdeu','pf-din':'Pedido fora (din.)','pf-cart':'Pedido fora (cart.)','sem-troco':'Estab. sem troco'}[t]||t);
+
+const impactoHtml=t=>{if(DEBITA.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--red);">débita caixa</span>';if(t===PF_CART)return'<span style="font-size:11px;font-weight:700;color:var(--indigo);">aba cartão</span>';if(SEPARADOS.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--purple);">separado</span>';return'<span style="font-size:11px;color:var(--text3);">—</span>';};
 
 async function lancar(){
   const data=todayStr(),hora=nowTimeShort();
-  const ent=document.getElementById('f-entregador').value.trim();
+  const ent=document.getElementById('f-entregador').value;
   const ped=document.getElementById('f-pedido').value.trim();
   const est=document.getElementById('f-estab').value.trim();
   const tipo=document.getElementById('f-tipo').value;
@@ -445,10 +602,12 @@ async function lancar(){
   const{error}=await sb.from('ocorrencias').insert({data,hora,entregador:ent,pedido:ped,estabelecimento:est,tipo,valor:val,obs,registrado_por:currentUser.nome});
   btn.disabled=false;btn.textContent='Registrar ocorrência';
   if(error){toast('Erro: '+error.message,'erro');return;}
-  ['f-entregador','f-pedido','f-estab','f-valor','f-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-entregador').value='';
+  ['f-pedido','f-estab','f-valor','f-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-tipo').value='';document.getElementById('f-dica').style.display='none';
   toast('Ocorrência registrada!');renderLista();
   if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
+  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
 }
 
 async function remover(id){
@@ -469,7 +628,6 @@ async function renderLista(){
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   const{data,error}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at',{ascending:false});
   if(error){el.innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
-  // todos veem todas as ocorrências na listagem
   const visivel=data||[];
   if(!visivel.length){el.innerHTML='<div class="empty">Nenhuma ocorrência para hoje.</div>';return;}
   el.innerHTML=`<div class="table-wrap"><table>
@@ -501,9 +659,7 @@ async function renderMeuTurno(){
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
   const abertura=aberto?parseFloat(aberto.valor_abertura):100;
   const saldo=abertura-totalDebita;
-
-  // ocorrências separadas visíveis para o operador (exceto cart-din e nao-pagou)
-  const separadosVisiveis=lista.filter(o=>[...SEPARADOS.filter(t=>t!=='cart-din'&&t!=='nao-pagou'),PF_CART].includes(o.tipo));
+  const separadosVisiveis=lista.filter(o=>[PF_CART,'pf-din','sem-troco'].includes(o.tipo));
 
   if(aberto){
     sw.innerHTML=`<div class="turno-status-box aberto">
@@ -524,7 +680,7 @@ async function renderMeuTurno(){
     if(separadosVisiveis.length){
       sw.innerHTML+=`<div class="card" style="margin-top:1rem">
         <div class="card-title">Registros separados do meu turno</div>
-        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Estes valores não afetam o caixa — são apenas para controle.</p>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Estes valores não afetam o caixa.</p>
         <div class="table-wrap"><table>
           <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Tipo</th><th>Valor</th><th>Obs.</th></tr></thead>
           <tbody>${separadosVisiveis.map(o=>`<tr>
@@ -601,17 +757,12 @@ async function renderResumoTotal(){
   const{data:ocs}=await sb.from('ocorrencias').select('tipo,valor').eq('data',filtro);
   const{data:dia}=await sb.from('caixa_dia').select('*').eq('data',filtro).maybeSingle();
   const lista=ocs||[];
-
-  // caixa: só débitos
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
-
-  // separados individuais
   const totPfDin   =lista.filter(o=>o.tipo==='pf-din').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totStTroco =lista.filter(o=>o.tipo==='sem-troco').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totCartDin =lista.filter(o=>o.tipo==='cart-din').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totNaoPagou=lista.filter(o=>o.tipo==='nao-pagou').reduce((s,o)=>s+parseFloat(o.valor),0);
-  // pf-cart fica na aba própria, não aparece aqui
-
+  const totalSeparados=totPfDin+totStTroco+totCartDin+totNaoPagou;
   const inicial=dia?.valor_inicial!=null?parseFloat(dia.valor_inicial):null;
   const final_=dia?.valor_final!=null?parseFloat(dia.valor_final):null;
   const esperado=inicial!=null?inicial-totalDebita:null;
@@ -628,105 +779,112 @@ async function renderResumoTotal(){
     </div>`;
 
   document.getElementById('admin-metrics').innerHTML=`
-    <div class="admin-metric"><div class="admin-metric-val">${fmt(totPfDin)}</div><div class="admin-metric-lbl">Pedido fora (dinheiro)</div></div>
+    <div class="admin-metric"><div class="admin-metric-val">${fmt(totPfDin)}</div><div class="admin-metric-lbl">Pedido fora (din.)</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totStTroco)}</div><div class="admin-metric-lbl">Estab. sem troco</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totCartDin)}</div><div class="admin-metric-lbl">Cartão → Dinheiro</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totNaoPagou)}</div><div class="admin-metric-lbl">Não pagou estab.</div></div>`;
+
+  document.getElementById('admin-total-row').innerHTML=`
+    <span class="admin-total-lbl">Total registros separados</span>
+    <span class="admin-total-val">${fmt(totalSeparados)}</span>`;
+}
+
+// CONTADOR POR ENTREGADOR
+async function renderContador(filtro, lista){
+  const wrap=document.getElementById('contador-wrap');
+  const contagem={};
+  lista.forEach(o=>{
+    if(!contagem[o.entregador])contagem[o.entregador]={total:0,debita:0,separado:0,pfcart:0};
+    contagem[o.entregador].total++;
+    if(DEBITA.includes(o.tipo))contagem[o.entregador].debita++;
+    else if(o.tipo===PF_CART)contagem[o.entregador].pfcart++;
+    else if(SEPARADOS.includes(o.tipo))contagem[o.entregador].separado++;
+  });
+  const sorted=Object.entries(contagem).sort((a,b)=>b[1].total-a[1].total);
+  if(!sorted.length){wrap.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';return;}
+  wrap.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Entregador</th><th>Total</th><th>Débita caixa</th><th>Separados</th><th>Ped. fora (cart.)</th></tr></thead>
+    <tbody>${sorted.map(([nome,c],i)=>`<tr>
+      <td class="mono" style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${nome}</td>
+      <td class="mono">${c.total}</td>
+      <td class="mono" style="color:${c.debita>0?'var(--red)':'var(--text3)'}">${c.debita}</td>
+      <td class="mono" style="color:${c.separado>0?'var(--purple)':'var(--text3)'}">${c.separado}</td>
+      <td class="mono" style="color:${c.pfcart>0?'var(--indigo)':'var(--text3)'}">${c.pfcart}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 async function renderFechamento(){
   const filtro=document.getElementById('fc-data').value||todayStr();
   await carregarDia(filtro);await renderResumoTotal();
-  const fcTurnos=document.getElementById('fc-turnos');
-  fcTurnos.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
   const{data:allOcs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
   const lista=allOcs||[];
 
-  if(!turnos||!turnos.length){
-    fcTurnos.innerHTML='<div class="empty">Nenhum turno registrado para esta data.</div>';
-  } else {
-    fcTurnos.innerHTML=turnos.map(t=>{
-      const ocsOp=lista.filter(o=>o.registrado_por===t.operador);
-      const deb=ocsOp.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
-      const esperado=parseFloat(t.valor_abertura)-deb;
-      // diferença = o que trouxe de volta vs o que deveria trazer (abertura - débitos)
-      const dif=t.valor_fechamento!=null?parseFloat(t.valor_fechamento)-esperado:null;
-      return `<div class="turno-card">
-        <div class="turno-header"><span class="turno-nome">${t.operador}</span><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em andamento':'Encerrado'}</span></div>
-        <div class="turno-body">
-          <div class="metrics3" style="margin-bottom:12px">
-            <div class="metric"><div class="metric-val blue">${fmt(t.valor_abertura)}</div><div class="metric-lbl">Abertura</div></div>
-            <div class="metric"><div class="metric-val red">-${deb.toFixed(2).replace('.',',')}</div><div class="metric-lbl">Débitos</div></div>
-            <div class="metric"><div class="metric-val ${esperado>=t.valor_abertura?'green':'red'}">${fmt(esperado)}</div><div class="metric-lbl">Deve voltar com</div></div>
-          </div>
-          <div class="turno-row"><span class="turno-lbl">Horário de abertura</span><span class="turno-val">${t.hora_abertura}</span></div>
-          <div class="turno-row"><span class="turno-lbl">Horário de fechamento</span><span class="turno-val">${t.hora_fechamento||'<span style="color:var(--text3)">Pendente</span>'}</span></div>
-          <div class="turno-row"><span class="turno-lbl">Valor de fechamento</span><span class="turno-val">${t.valor_fechamento!=null?fmt(t.valor_fechamento):'<span style="color:var(--text3)">Pendente</span>'}</span></div>
-          ${dif!=null?`<div class="turno-row"><span class="turno-lbl">Diferença do turno</span><span class="turno-val" style="color:${dif>=0?'var(--green)':'var(--red)'}">${dif>=0?'+':''}${dif.toFixed(2).replace('.',',')} (esperado ${fmt(esperado)} / voltou ${fmt(parseFloat(t.valor_fechamento))})</span></div>`:''}
+  await renderContador(filtro,lista);
+
+  const fcTurnos=document.getElementById('fc-turnos');
+  if(!turnos||!turnos.length){fcTurnos.innerHTML='<div class="empty">Nenhum turno registrado para esta data.</div>';}
+  else{fcTurnos.innerHTML=turnos.map(t=>{
+    const ocsOp=lista.filter(o=>o.registrado_por===t.operador);
+    const deb=ocsOp.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+    const esperado=parseFloat(t.valor_abertura)-deb;
+    const dif=t.valor_fechamento!=null?parseFloat(t.valor_fechamento)-esperado:null;
+    return `<div class="turno-card">
+      <div class="turno-header"><span class="turno-nome">${t.operador}</span><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em andamento':'Encerrado'}</span></div>
+      <div class="turno-body">
+        <div class="metrics3" style="margin-bottom:12px">
+          <div class="metric"><div class="metric-val blue">${fmt(t.valor_abertura)}</div><div class="metric-lbl">Abertura</div></div>
+          <div class="metric"><div class="metric-val red">-${deb.toFixed(2).replace('.',',')}</div><div class="metric-lbl">Débitos</div></div>
+          <div class="metric"><div class="metric-val ${esperado>=t.valor_abertura?'green':'red'}">${fmt(esperado)}</div><div class="metric-lbl">Deve voltar com</div></div>
         </div>
-      </div>`;
-    }).join('');
-  }
+        <div class="turno-row"><span class="turno-lbl">Horário de abertura</span><span class="turno-val">${t.hora_abertura}</span></div>
+        <div class="turno-row"><span class="turno-lbl">Horário de fechamento</span><span class="turno-val">${t.hora_fechamento||'<span style="color:var(--text3)">Pendente</span>'}</span></div>
+        <div class="turno-row"><span class="turno-lbl">Valor de fechamento</span><span class="turno-val">${t.valor_fechamento!=null?fmt(t.valor_fechamento):'<span style="color:var(--text3)">Pendente</span>'}</span></div>
+        ${dif!=null?`<div class="turno-row"><span class="turno-lbl">Diferença do turno</span><span class="turno-val" style="color:${dif>=0?'var(--green)':'var(--red)'}">${dif>=0?'+':''}${dif.toFixed(2).replace('.',',')} (esperado ${fmt(esperado)} / voltou ${fmt(parseFloat(t.valor_fechamento))})</span></div>`:''}
+      </div>
+    </div>`;}).join('');}
 
   const fcOcs=document.getElementById('fc-ocorrencias');
-  if(!lista.length){
-    fcOcs.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';
-  } else {
-    fcOcs.innerHTML=`<div class="table-wrap"><table>
-      <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Tipo</th><th>Valor</th><th>Impacto</th><th>Por</th><th>Obs.</th></tr></thead>
-      <tbody>${lista.map(o=>`<tr>
-        <td class="mono">${o.hora||'—'}</td>
-        <td style="font-weight:500">${o.entregador}</td>
-        <td class="mono">${o.pedido}</td>
-        <td>${o.estabelecimento}</td>
-        <td>${badgeHtml(o.tipo)}</td>
-        <td class="mono">${fmt(o.valor)}</td>
-        <td>${impactoHtml(o.tipo)}</td>
-        <td style="color:var(--text2);font-size:12px">${o.registrado_por||'—'}</td>
-        <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
-      </tr>`).join('')}</tbody>
-    </table></div>`;
-  }
+  if(!lista.length){fcOcs.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';}
+  else{fcOcs.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Tipo</th><th>Valor</th><th>Impacto</th><th>Por</th><th>Obs.</th></tr></thead>
+    <tbody>${lista.map(o=>`<tr>
+      <td class="mono">${o.hora||'—'}</td>
+      <td style="font-weight:500">${o.entregador}</td>
+      <td class="mono">${o.pedido}</td>
+      <td>${o.estabelecimento}</td>
+      <td>${badgeHtml(o.tipo)}</td>
+      <td class="mono">${fmt(o.valor)}</td>
+      <td>${impactoHtml(o.tipo)}</td>
+      <td style="color:var(--text2);font-size:12px">${o.registrado_por||'—'}</td>
+      <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;}
 }
 
-// ABA PEDIDOS POR FORA CARTÃO
+// PF CART
 async function renderPfCart(){
   const filtro=document.getElementById('pfc-data').value||todayStr();
   const totalBox=document.getElementById('pfc-total-box');
   const listaEl=document.getElementById('pfc-lista');
   totalBox.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   listaEl.innerHTML='';
-
-  // busca com ou sem filtro de data
   let query=sb.from('ocorrencias').select('*').eq('tipo','pf-cart').order('data',{ascending:false}).order('created_at',{ascending:false});
-  if(filtro) query=query.eq('data',filtro);
-
+  if(filtro)query=query.eq('data',filtro);
   const{data,error}=await query;
   if(error){totalBox.innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
   const lista=data||[];
   const total=lista.reduce((s,o)=>s+parseFloat(o.valor),0);
-
   totalBox.innerHTML=`
     <div style="font-size:11px;font-weight:600;color:var(--indigo);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${filtro?'Total do dia '+fmtDate(filtro):'Total acumulado (todos os dias)'}</div>
     <div class="pf-cart-total">${fmt(total)}</div>
     <div class="pf-cart-sub">${lista.length} registro${lista.length!==1?'s':''}</div>
-    <button class="btn" style="font-size:12px;padding:5px 14px;" onclick="toggleFiltro()">
-      ${filtro?'Ver todos os dias':'Filtrar por data'}
-    </button>`;
-
-  if(!lista.length){
-    listaEl.innerHTML='<div class="empty">Nenhum pedido por fora no cartão para este filtro.</div>';
-    return;
-  }
-
-  // agrupa por data
+    <button class="btn" style="font-size:12px;padding:5px 14px;" onclick="toggleFiltroPfc()">${filtro?'Ver todos os dias':'Filtrar por data'}</button>`;
+  if(!lista.length){listaEl.innerHTML='<div class="empty">Nenhum registro para este filtro.</div>';return;}
   const porData={};
-  lista.forEach(o=>{
-    if(!porData[o.data])porData[o.data]=[];
-    porData[o.data].push(o);
-  });
-
+  lista.forEach(o=>{if(!porData[o.data])porData[o.data]=[];porData[o.data].push(o);});
   listaEl.innerHTML=Object.entries(porData).map(([d,ocs])=>{
     const tot=ocs.reduce((s,o)=>s+parseFloat(o.valor),0);
     return `<div class="card">
@@ -737,10 +895,7 @@ async function renderPfCart(){
       <div class="table-wrap"><table>
         <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Estabelecimento</th><th>Valor</th><th>Por</th><th>Obs.</th></tr></thead>
         <tbody>${ocs.map(o=>`<tr>
-          <td class="mono">${o.hora||'—'}</td>
-          <td>${o.entregador}</td>
-          <td class="mono">${o.pedido}</td>
-          <td>${o.estabelecimento}</td>
+          <td class="mono">${o.hora||'—'}</td><td>${o.entregador}</td><td class="mono">${o.pedido}</td><td>${o.estabelecimento}</td>
           <td class="mono" style="color:var(--indigo);font-weight:600">${fmt(o.valor)}</td>
           <td style="color:var(--text2);font-size:12px">${o.registrado_por||'—'}</td>
           <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
@@ -750,10 +905,67 @@ async function renderPfCart(){
   }).join('');
 }
 
-function toggleFiltro(){
+function toggleFiltroPfc(){
   const inp=document.getElementById('pfc-data');
-  if(inp.value){inp.value='';} else {inp.value=todayStr();}
+  if(inp.value){inp.value='';}else{inp.value=todayStr();}
   renderPfCart();
+}
+
+// EXPORTAR EXCEL
+async function exportarExcel(){
+  const filtro=document.getElementById('fc-data').value||todayStr();
+  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
+  const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
+  const wb=XLSX.utils.book_new();
+  // aba ocorrências
+  const ocsRows=[[' Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Registrado por','Obs.']];
+  (ocs||[]).forEach(o=>{
+    const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':SEPARADOS.includes(o.tipo)?'Separado':'—';
+    ocsRows.push([o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),imp,o.registrado_por||'',o.obs||'']);
+  });
+  const ws1=XLSX.utils.aoa_to_sheet(ocsRows);
+  XLSX.utils.book_append_sheet(wb,ws1,'Ocorrências');
+  // aba turnos
+  const tRows=[['Operador','Abertura','Fechamento','Valor Abertura','Valor Fechamento','Status']];
+  (turnos||[]).forEach(t=>tRows.push([t.operador,t.hora_abertura,t.hora_fechamento||'',parseFloat(t.valor_abertura),t.valor_fechamento!=null?parseFloat(t.valor_fechamento):'',t.status]));
+  const ws2=XLSX.utils.aoa_to_sheet(tRows);
+  XLSX.utils.book_append_sheet(wb,ws2,'Turnos');
+  XLSX.writeFile(wb,`MaisDelivery_${filtro}.xlsx`);
+  toast('Excel exportado!');
+}
+
+// EXPORTAR PDF
+async function exportarPDF(){
+  const filtro=document.getElementById('fc-data').value||todayStr();
+  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
+  const{data:dia}=await sb.from('caixa_dia').select('*').eq('data',filtro).maybeSingle();
+  const lista=ocs||[];
+  const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  const inicial=dia?.valor_inicial!=null?parseFloat(dia.valor_inicial):null;
+  const final_=dia?.valor_final!=null?parseFloat(dia.valor_final):null;
+  const esperado=inicial!=null?inicial-totalDebita:null;
+  const difReal=esperado!=null&&final_!=null?final_-esperado:null;
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape'});
+  doc.setFontSize(16);doc.setFont(undefined,'bold');
+  doc.text('Mais Delivery — Fechamento de Caixa',14,16);
+  doc.setFontSize(11);doc.setFont(undefined,'normal');
+  doc.text(`Data: ${fmtDate(filtro)}`,14,24);
+  let y=32;
+  if(inicial!=null){doc.text(`Valor inicial: ${fmt(inicial)}   Débitos: -${fmt(totalDebita)}   Esperado: ${fmt(esperado||0)}   Final: ${final_!=null?fmt(final_):'—'}   Diferença: ${difReal!=null?(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',','):'—'}`,14,y);y+=10;}
+  doc.autoTable({
+    startY:y+2,
+    head:[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Por','Obs.']],
+    body:lista.map(o=>{
+      const imp=DEBITA.includes(o.tipo)?'Débita':o.tipo===PF_CART?'Cartão':SEPARADOS.includes(o.tipo)?'Sep.':'—';
+      return[o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),fmt(o.valor),imp,o.registrado_por||'',o.obs||''];
+    }),
+    styles:{fontSize:8},
+    headStyles:{fillColor:[232,69,30]},
+    alternateRowStyles:{fillColor:[250,249,247]},
+  });
+  doc.save(`MaisDelivery_${filtro}.pdf`);
+  toast('PDF exportado!');
 }
 
 // TEMPO REAL
@@ -762,12 +974,14 @@ sb.channel('md-rt')
     if(!currentUser)return;
     renderLista();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
+    if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
     if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
     if(isAdmin()&&document.getElementById('sec-pf-cart').classList.contains('active'))renderPfCart();
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'turnos'},()=>{
     if(!currentUser)return;
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
+    if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
     if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
   })
   .subscribe();
