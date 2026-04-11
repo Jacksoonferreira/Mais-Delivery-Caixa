@@ -796,11 +796,16 @@ async function renderCtrlEnt(){
   // Busca todos abertos (sem filtro de data — persiste entre dias) + fechados de hoje
   // order by id desc para pegar o mais recente quando há duplicatas
   const{data:abertos}=await sb.from('entregadores_turno').select('*').eq('status','aberto').order('id',{ascending:false});
+  // Fechados que não devolveram (qualquer data) — precisam aparecer até devolver
+  const{data:fechadosPendentes}=await sb.from('entregadores_turno').select('*').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
+  // Fechados de hoje que devolveram — para mostrar o status do dia
   const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).eq('status','fechado').order('id',{ascending:false});
   entregadoresList=ents||[];
   const turnosMap={};
-  // Para abertos: pega o registro mais recente por entregador (primeiro da lista por causa do order desc)
   (abertos||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
+  // Pendentes de devolução de qualquer dia
+  (fechadosPendentes||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
+  // Fechados de hoje (para mostrar os que já devolveram hoje)
   (fechadosHoje||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   if(!entregadoresList.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
   renderEntGrid(turnosMap);
@@ -864,9 +869,11 @@ function renderEntGrid(turnosMap){
 
 async function filtrarEntregadores(){
   const{data:abertos}=await sb.from('entregadores_turno').select('*').eq('status','aberto').order('id',{ascending:false});
+  const{data:fechadosPend}=await sb.from('entregadores_turno').select('*').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
   const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).eq('status','fechado').order('id',{ascending:false});
   const turnosMap={};
   (abertos||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
+  (fechadosPend||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   (fechadosHoje||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   renderEntGrid(turnosMap);
 }
