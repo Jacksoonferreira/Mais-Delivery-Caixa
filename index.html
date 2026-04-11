@@ -319,11 +319,33 @@ tr:hover td{background:#fafaf8;}
                   <option value="cart-din">Era cartão → passou dinheiro</option>
                   <option value="nao-pagou">Esqueceu de pagar estabelecimento</option>
                 </optgroup>
+                <optgroup label="— Débito do entregador (não afeta caixa) —">
+                  <option value="esq-cobrar">Esqueceu de cobrar do cliente</option>
+                  <option value="danificou">Danificou o pedido</option>
+                </optgroup>
               </select>
             </div>
             <div class="field"><label>Valor (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
           </div>
           <div class="dica" id="f-dica"></div>
+          <div id="f-danificou-extra" style="display:none;margin-bottom:12px;">
+            <div class="row2">
+              <div class="field" style="margin:0">
+                <label>Pedido foi refeito pelo estabelecimento?</label>
+                <select id="f-refeito" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
+                  <option value="false">Não</option>
+                  <option value="true">Sim</option>
+                </select>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Cobrar do estabelecimento?</label>
+                <select id="f-cobrar-estab" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
+                  <option value="false">Não</option>
+                  <option value="true">Sim — lançar no relatório</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div class="field"><label>Observação (opcional)</label><input type="text" id="f-obs" placeholder="Ex: detalhe da ocorrência"></div>
           <button class="btn btn-primary" id="btn-lancar" onclick="lancar()">Registrar ocorrência</button>
         </div>
@@ -503,6 +525,27 @@ tr:hover td{background:#fafaf8;}
   </main>
 </div>
 
+<!-- SEÇÃO DESCONTOS -->
+<div id="sec-descontos" class="section" style="max-width:960px;margin:0 auto;padding:1.5rem;">
+  <div class="sec-header">
+    <div class="sec-title">Descontos de entregadores</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select class="date-input" id="desc-semana" onchange="renderDescontos()">
+        <option value="atual">Semana atual</option>
+        <option value="anterior">Semana anterior</option>
+        <option value="todas">Todas pendentes</option>
+      </select>
+      <select class="date-input" id="desc-status" onchange="renderDescontos()">
+        <option value="pendente">Pendentes</option>
+        <option value="descontado">Descontados</option>
+        <option value="">Todos</option>
+      </select>
+    </div>
+  </div>
+  <div id="desc-resumo"></div>
+  <div id="desc-lista"></div>
+</div>
+
 <!-- MODAL ABRIR ENTREGADOR -->
 <div class="modal-overlay" id="modal-abrir-ent">
   <div class="modal">
@@ -558,6 +601,7 @@ const USUARIOS=[
 ];
 
 const DEBITA=['din-cart','moeda','perdeu'];
+const DEBITO_ENT=['esq-cobrar','danificou','perdeu']; // débitos pessoais do entregador
 const SEPARADOS=['pf-din','sem-troco','cart-din','nao-pagou'];
 const PF_CART='pf-cart';
 
@@ -606,6 +650,7 @@ function buildNav(){
   }
   if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Cadastro</button>`;
   h+=`<button class="tab" onclick="showTab('repasse',this)">Repasse</button>`;
+  h+=`<button class="tab" onclick="showTab('descontos',this)">Descontos</button>`;
   if(isAdmin()){
     h+=`<button class="tab" onclick="showTab('historico',this)">Histórico</button>`;
     h+=`<button class="tab" onclick="showTab('relatorio',this)">Relatório</button>`;
@@ -671,6 +716,7 @@ function showTab(name,btn){
   if(name==='repasse')renderRepasse();
   if(name==='relatorio')renderRelatorio();
   if(name==='log')renderLog();
+  if(name==='descontos')renderDescontos();
   if(name==='lancar')atualizarBloqueioLancar();
 }
 
@@ -1168,14 +1214,23 @@ async function renderDashboard(){
 function atualizarDica(){
   const t=document.getElementById('f-tipo').value;
   const el=document.getElementById('f-dica');
-  const map={'din-cart':['dica-neg','Cliente marcou dinheiro e pagou no cartão — DÉBITA do caixa.'],'moeda':['dica-neg','Caixa negativo por moedas — DÉBITA do caixa.'],'perdeu':['dica-neg','Entregador perdeu dinheiro — DÉBITA do caixa.'],'pf-din':['dica-sep','Pedido por fora pago em dinheiro — registrado separadamente, não afeta o caixa.'],'pf-cart':['dica-pf','Pedido por fora pago no cartão — vai para a aba exclusiva, não afeta o caixa.'],'sem-troco':['dica-sep','Estabelecimento sem troco — registrado separadamente, não afeta o caixa.'],'cart-din':['dica-sep','Cliente marcou cartão e pagou em dinheiro — registrado separadamente, não afeta o caixa.'],'nao-pagou':['dica-sep','Não pagou o estabelecimento — registrado separadamente, não afeta o caixa.']};
+  // Mostrar/ocultar campos extras para danificou
+  const extraDiv=document.getElementById('f-danificou-extra');
+  if(extraDiv) extraDiv.style.display=t==='danificou'?'block':'none';
+  const map={'din-cart':['dica-neg','Cliente marcou dinheiro e pagou no cartão — DÉBITA do caixa.'],'moeda':['dica-neg','Caixa negativo por moedas — DÉBITA do caixa.'],'perdeu':['dica-neg','Entregador perdeu dinheiro — DÉBITA do caixa.'],'pf-din':['dica-sep','Pedido por fora pago em dinheiro — registrado separadamente, não afeta o caixa.'],'pf-cart':['dica-pf','Pedido por fora pago no cartão — vai para a aba exclusiva, não afeta o caixa.'],'sem-troco':['dica-sep','Estabelecimento sem troco — registrado separadamente, não afeta o caixa.'],'cart-din':['dica-sep','Cliente marcou cartão e pagou em dinheiro — registrado separadamente, não afeta o caixa.'],'nao-pagou':['dica-sep','Não pagou o estabelecimento — registrado separadamente, não afeta o caixa.'],
+    'esq-cobrar':['dica-sep','Entregador esqueceu de cobrar do cliente — não afeta o caixa, será descontado do entregador semanalmente.'],
+    'danificou':  ['dica-sep','Entregador danificou o pedido — não afeta o caixa, será descontado do entregador.']};
   el.className='dica';
   if(map[t]){el.classList.add(map[t][0]);el.textContent=map[t][1];el.style.display='block';}
   else el.style.display='none';
 }
 
-const badgeHtml=t=>({'din-cart':'<span class="badge badge-dc">Dinheiro→Cartão</span>','cart-din':'<span class="badge badge-cd">Cartão→Dinheiro</span>','nao-pagou':'<span class="badge badge-np">Não pagou estab.</span>','moeda':'<span class="badge badge-mo">Moedas</span>','perdeu':'<span class="badge badge-perdeu">Entregador perdeu</span>','pf-din':'<span class="badge badge-pf-din">Pedido fora (din.)</span>','pf-cart':'<span class="badge badge-pf-cart">Pedido fora (cart.)</span>','sem-troco':'<span class="badge badge-st">Estab. sem troco</span>'}[t]||t);
-const tipoLabel=t=>({'din-cart':'Dinheiro→Cartão','cart-din':'Cartão→Dinheiro','nao-pagou':'Não pagou estab.','moeda':'Moedas','perdeu':'Entregador perdeu','pf-din':'Pedido fora (din.)','pf-cart':'Pedido fora (cart.)','sem-troco':'Estab. sem troco'}[t]||t);
+const badgeHtml=t=>({'din-cart':'<span class="badge badge-dc">Dinheiro→Cartão</span>','cart-din':'<span class="badge badge-cd">Cartão→Dinheiro</span>','nao-pagou':'<span class="badge badge-np">Não pagou estab.</span>','moeda':'<span class="badge badge-mo">Moedas</span>','perdeu':'<span class="badge badge-perdeu">Entregador perdeu</span>','pf-din':'<span class="badge badge-pf-din">Pedido fora (din.)</span>','pf-cart':'<span class="badge badge-pf-cart">Pedido fora (cart.)</span>','sem-troco':'<span class="badge badge-st">Estab. sem troco</span>',
+  'esq-cobrar':'<span class="badge" style="background:#fef3c7;color:#92400e">Esq. cobrar cliente</span>',
+  'danificou':  '<span class="badge" style="background:#fce7f3;color:#9d174d">Danificou pedido</span>'}[t]||t);
+const tipoLabel=t=>({'din-cart':'Dinheiro→Cartão','cart-din':'Cartão→Dinheiro','nao-pagou':'Não pagou estab.','moeda':'Moedas','perdeu':'Entregador perdeu','pf-din':'Pedido fora (din.)','pf-cart':'Pedido fora (cart.)','sem-troco':'Estab. sem troco',
+  'esq-cobrar':'Esq. cobrar cliente',
+  'danificou':'Danificou pedido'}[t]||t);
 const impactoHtml=t=>{if(DEBITA.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--red);">débita caixa</span>';if(t===PF_CART)return'<span style="font-size:11px;font-weight:700;color:var(--indigo);">aba cartão</span>';if(SEPARADOS.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--purple);">separado</span>';return'<span style="font-size:11px;color:var(--text3);">—</span>';};
 
 // LANÇAR
@@ -1193,6 +1248,18 @@ async function lancar(){
   const{error}=await sb.from('ocorrencias').insert({data,hora,entregador:ent,pedido:ped,estabelecimento:est,tipo,valor:val,obs,registrado_por:currentUser.nome});
   btn.disabled=false;btn.textContent='Registrar ocorrência';
   if(error){toast('Erro: '+error.message,'erro');return;}
+  // Para tipos de débito do entregador, salva em debitos_entregadores
+  if(DEBITO_ENT.includes(tipo)){
+    const refeito=document.getElementById('f-refeito')?.value==='true'||false;
+    const cobrarEstab=document.getElementById('f-cobrar-estab')?.value==='true'||false;
+    const semana=getSemana(data);
+    await sb.from('debitos_entregadores').insert({
+      data,entregador:ent,tipo,valor:val,pedido:ped,
+      estabelecimento:est,obs,registrado_por:currentUser.nome,
+      pedido_refeito:refeito,cobrar_estabelecimento:cobrarEstab,
+      status:'pendente',semana
+    });
+  }
   document.getElementById('f-entregador').value='';
   ['f-pedido','f-estab','f-valor','f-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-tipo').value='';document.getElementById('f-dica').style.display='none';
@@ -1623,6 +1690,19 @@ async function exportarPDF(){
 let automaticosJaRodaram = false;
 
 // ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function getSemana(dataStr){
+  const d=new Date(dataStr+'T12:00:00');
+  const dia=d.getDay();
+  const diff=d.getDate()-(dia===0?6:dia-1);
+  const seg=new Date(d);seg.setDate(diff);
+  const dom=new Date(seg);dom.setDate(seg.getDate()+6);
+  const fmt2=x=>`${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}`;
+  return `${fmt2(seg)} a ${fmt2(dom)}/${dom.getFullYear()}`;
+}
+
+// ═══════════════════════════════════════════
 // LOG DE AÇÕES
 // ═══════════════════════════════════════════
 async function registrarLog(acao, detalhe=''){
@@ -1915,6 +1995,89 @@ async function exportarRelatorioExcel(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Ocorrências');
   XLSX.writeFile(wb,`Relatorio_${de}_${ate}.xlsx`);
   toast('Excel exportado!');
+}
+
+
+// ═══════════════════════════════════════════
+// DESCONTOS DE ENTREGADORES
+// ═══════════════════════════════════════════
+async function renderDescontos(){
+  const semanaFiltro=document.getElementById('desc-semana').value;
+  const statusFiltro=document.getElementById('desc-status').value;
+  const resumoEl=document.getElementById('desc-resumo');
+  const listaEl=document.getElementById('desc-lista');
+  resumoEl.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  listaEl.innerHTML='';
+
+  let q=sb.from('debitos_entregadores').select('*').order('data',{ascending:false});
+  if(statusFiltro) q=q.eq('status',statusFiltro);
+  if(semanaFiltro==='atual') q=q.eq('semana',getSemana(todayStr()));
+  if(semanaFiltro==='anterior'){
+    const d=new Date(brDate());d.setDate(d.getDate()-7);
+    const semAnt=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+    q=q.ilike('semana',semAnt+'%');
+  }
+
+  const{data,error}=await q;
+  if(error){resumoEl.innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
+  const lista=data||[];
+  const total=lista.reduce((s,o)=>s+parseFloat(o.valor),0);
+
+  // Agrupa por entregador
+  const porEnt={};
+  lista.forEach(o=>{
+    if(!porEnt[o.entregador])porEnt[o.entregador]={total:0,itens:[]};
+    porEnt[o.entregador].total+=parseFloat(o.valor);
+    porEnt[o.entregador].itens.push(o);
+  });
+  const sorted=Object.entries(porEnt).sort((a,b)=>b[1].total-a[1].total);
+
+  resumoEl.innerHTML=`
+    <div class="metrics3" style="margin-bottom:1rem;">
+      <div class="metric"><div class="metric-val red">${fmt(total)}</div><div class="metric-lbl">Total a descontar</div></div>
+      <div class="metric"><div class="metric-val blue">${sorted.length}</div><div class="metric-lbl">Entregadores</div></div>
+      <div class="metric"><div class="metric-val amber">${lista.length}</div><div class="metric-lbl">Registros</div></div>
+    </div>`;
+
+  if(!sorted.length){listaEl.innerHTML='<div class="empty">Nenhum registro encontrado.</div>';return;}
+
+  const tipoDesc={'esq-cobrar':'Esqueceu de cobrar','danificou':'Danificou pedido','perdeu':'Entregador perdeu'};
+  listaEl.innerHTML=sorted.map(([nome,dados])=>`
+    <div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <span style="font-weight:600;font-size:15px;">${nome}</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-family:'DM Mono',monospace;font-weight:600;font-size:18px;color:var(--red);">${fmt(dados.total)}</span>
+          ${statusFiltro==='pendente'&&isAdmin()?`<button class="btn btn-sm btn-green" onclick="marcarDescontado('${nome.replace(/'/g,"\'")}')">✓ Marcar descontado</button>`:''}
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Data</th><th>Semana</th><th>Tipo</th><th>Pedido</th><th>Estabelecimento</th><th>Valor</th><th>Refeito?</th><th>Cobrar estab?</th><th>Status</th><th>Obs.</th></tr></thead>
+        <tbody>${dados.itens.map(o=>`<tr>
+          <td class="mono">${fmtDate(o.data)}</td>
+          <td style="font-size:11px;color:var(--text2)">${o.semana||'—'}</td>
+          <td>${badgeHtml(o.tipo)}</td>
+          <td class="mono">${o.pedido||'—'}</td>
+          <td>${o.estabelecimento||'—'}</td>
+          <td class="mono" style="color:var(--red);font-weight:600">${fmt(o.valor)}</td>
+          <td>${o.pedido_refeito?'✅ Sim':'Não'}</td>
+          <td>${o.cobrar_estabelecimento?'⚠️ Sim':'Não'}</td>
+          <td><span class="badge ${o.status==='pendente'?'badge-perdeu':'badge-fechado'}">${o.status==='pendente'?'Pendente':'Descontado'}</span></td>
+          <td style="color:var(--text2);font-size:12px">${o.obs||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`).join('');
+}
+
+async function marcarDescontado(entregador){
+  if(!confirm(`Marcar todos os débitos pendentes de ${entregador} como descontados?`))return;
+  const{error}=await sb.from('debitos_entregadores')
+    .update({status:'descontado',data_desconto:todayStr()})
+    .eq('entregador',entregador).eq('status','pendente');
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  registrarLog(`Marcou débitos de ${entregador} como descontados`);
+  toast(`Débitos de ${entregador} marcados como descontados!`);
+  renderDescontos();
 }
 
 // TEMPO REAL
