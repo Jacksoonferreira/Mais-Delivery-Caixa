@@ -1135,19 +1135,33 @@ async function renderDashboard(){
     debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
   });
   // Fechados que NÃO devolveram continuam contando como "com entregadores"
-  // Fechados que NÃO devolveram — excluir se já tem aberto para o mesmo entregador
   const nomesAbertos=new Set((entAbertos||[]).map(t=>t.entregador));
+  // Fechados que não devolveram (sem duplicar com abertos)
   const entFechadosNaoDevolveu=(entFechadosHoje||[]).filter(t=>t.devolveu===false&&!nomesAbertos.has(t.entregador));
-  // Total saído = abertos + fechados pendentes (sem duplicar)
-  const totalSaidoComEnt=[...(entAbertos||[]),...entFechadosNaoDevolveu]
-    .reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  // Com entregadores abertos = saída + complemento - débitos
+  // Fechados que devolveram (sem duplicar com abertos) — o valor que voltou entra no caixa
+  const entFechadosDevolveu=(entFechadosHoje||[]).filter(t=>t.devolveu!==false&&!nomesAbertos.has(t.entregador));
+
+  // Total saído do caixa:
+  // - Abertos: saída + complemento (ainda fora)
+  // - Fechados que devolveram: saída - o que voltou (diferença ficou fora)
+  // - Fechados que não devolveram: saída + complemento (tudo fora)
+  const totalSaidoAbertos=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalSaidoDevolveu=entFechadosDevolveu.reduce((s,t)=>{
+    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
+    const voltou=parseFloat(t.valor_fechamento||0);
+    return s+Math.max(0,saida-voltou); // só a diferença ficou fora
+  },0);
+  const totalSaidoNaoDevolveu=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalSaidoComEnt=totalSaidoAbertos+totalSaidoDevolveu+totalSaidoNaoDevolveu;
+
+  // Com entregadores (visível agora):
+  // - Abertos = saída + complemento - débitos já registrados
   const totalComEntAbertos=(entAbertos||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const debitos=debitosEntMap[t.entregador]||0;
     return s+Math.max(0,saida-debitos);
   },0);
-  // + fechados pendentes (sem aberto ativo)
+  // - Fechados não devolveram = o que voltaram com eles
   const totalComEntNaoDevol=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_fechamento||t.valor_abertura||0),0);
   const totalComEnt=totalComEntAbertos+totalComEntNaoDevol;
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
@@ -1526,8 +1540,15 @@ async function renderResumoTotal(){
   lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{debitosEntRes[o.entregador]=(debitosEntRes[o.entregador]||0)+parseFloat(o.valor);});
   const nomesAbertosRes=new Set((entAbertosRes||[]).map(t=>t.entregador));
   const entFechadosNaoDevRes=(entFechadosRes||[]).filter(t=>t.devolveu===false&&!nomesAbertosRes.has(t.entregador));
-  const totalSaidoRes=[...(entAbertosRes||[]),...entFechadosNaoDevRes]
-    .reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const entFechadosDevRes=(entFechadosRes||[]).filter(t=>t.devolveu!==false&&!nomesAbertosRes.has(t.entregador));
+  const totalSaidoAbRes=(entAbertosRes||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalSaidoDevRes=entFechadosDevRes.reduce((s,t)=>{
+    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
+    const voltou=parseFloat(t.valor_fechamento||0);
+    return s+Math.max(0,saida-voltou);
+  },0);
+  const totalSaidoNaoDevRes=entFechadosNaoDevRes.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalSaidoRes=totalSaidoAbRes+totalSaidoDevRes+totalSaidoNaoDevRes;
   const totalComEntAbRes=(entAbertosRes||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const deb=debitosEntRes[t.entregador]||0;
