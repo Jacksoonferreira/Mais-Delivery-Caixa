@@ -718,6 +718,9 @@ function showTab(name,btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('sec-'+name).classList.add('active');
+  // Limpa busca ao trocar de aba
+  const buscaEl=document.getElementById('busca-pedido');
+  if(buscaEl&&name!=='lancar'){buscaEl.value='';_allOcsCache=[];}
   if(name==='dashboard')renderDashboard();
   if(name==='ctrl-ent')renderCtrlEnt();
   if(name==='meu-turno')renderMeuTurno();
@@ -1352,7 +1355,7 @@ async function remover(id){
   if(!confirm('Remover esta ocorrência?'))return;
   await sb.from('ocorrencias').delete().eq('id',id);
   registrarLog(`Removeu ocorrência ID ${id}`);
-  toast('Removida.');renderLista();
+  _allOcsCache=[];toast('Removida.');renderLista();
   if(document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
 }
 
@@ -2116,9 +2119,10 @@ async function renderDescontos(){
   if(statusFiltro) q=q.eq('status',statusFiltro);
   if(semanaFiltro==='atual') q=q.eq('semana',getSemana(todayStr()));
   if(semanaFiltro==='anterior'){
+    // Calcula semana anterior corretamente
     const d=new Date(brDate());d.setDate(d.getDate()-7);
-    const semAnt=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-    q=q.ilike('semana',semAnt+'%');
+    const semAnt=getSemana(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    q=q.eq('semana',semAnt);
   }
 
   const{data,error}=await q;
@@ -2260,7 +2264,8 @@ sb.channel('md-rt')
   .on('postgres_changes',{event:'*',schema:'public',table:'entregadores_turno'},()=>{
     if(!currentUser)return;
     if(document.getElementById('sec-ctrl-ent').classList.contains('active'))renderCtrlEnt();
-    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(document.getElementById('sec-dashboard').classList.contains('active')){renderDashboard();}
+    else{verificarEntregadoresAbertos();} // verifica alerta mesmo sem estar no dashboard
     if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
   })
   .subscribe();
