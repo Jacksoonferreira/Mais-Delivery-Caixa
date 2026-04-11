@@ -1992,6 +1992,8 @@ async function renderRelatorio(){
   const totalPfCart=lista.filter(o=>o.tipo==='pf-cart').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totalStTroco=lista.filter(o=>o.tipo==='sem-troco').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totalNaoPagou=lista.filter(o=>o.tipo==='nao-pagou').reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalSeparados=totalPfDin+totalPfCart+totalStTroco+totalNaoPagou;
+  const diffDebitaSep=totalSeparados-totalDebita;
   const totalCartDin=lista.filter(o=>o.tipo==='cart-din').reduce((s,o)=>s+parseFloat(o.valor),0);
   const diasComMovimento=[...new Set(lista.map(o=>o.data))].length;
   const totalEntregadores=[...new Set(entList.map(t=>t.entregador))].length;
@@ -2013,10 +2015,24 @@ async function renderRelatorio(){
     <div class="card" style="margin-bottom:1rem;">
       <div class="card-title">Resumo do período — ${fmtDate(de)} a ${fmtDate(ate)}</div>
       <div class="metrics4" style="margin-bottom:1rem;">
-        <div class="metric"><div class="metric-val red">${fmt(totalDebita)}</div><div class="metric-lbl">Total débitos</div></div>
+        <div class="metric"><div class="metric-val red">${fmt(totalDebita)}</div><div class="metric-lbl">Total débitos caixa</div></div>
         <div class="metric"><div class="metric-val blue">${diasComMovimento}</div><div class="metric-lbl">Dias com movimento</div></div>
         <div class="metric"><div class="metric-val green">${totalEntregadores}</div><div class="metric-lbl">Entregadores únicos</div></div>
         <div class="metric"><div class="metric-val indigo">${lista.length}</div><div class="metric-lbl">Ocorrências totais</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1rem;">
+        <div style="background:var(--red-bg);border:1px solid #fca5a5;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+          <div style="font-size:11px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Débita do caixa</div>
+          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--red);">-${fmt(totalDebita)}</div>
+        </div>
+        <div style="background:var(--purple-bg);border:1px solid #ddd6fe;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+          <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Registros separados</div>
+          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);">+${fmt(totalSeparados)}</div>
+        </div>
+        <div style="background:${diffDebitaSep>=0?'var(--green-bg)':'var(--red-bg)'};border:1px solid ${diffDebitaSep>=0?'#bbf7d0':'#fca5a5'};border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+          <div style="font-size:11px;font-weight:600;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Diferença (sep. − déb.)</div>
+          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};">${diffDebitaSep>=0?'+':''}${diffDebitaSep.toFixed(2).replace('.',',')}</div>
+        </div>
       </div>
       <div class="admin-grid-4" style="margin-bottom:0;">
         <div class="admin-metric"><div class="admin-metric-val">${fmt(totalPfDin)}</div><div class="admin-metric-lbl">Pedido fora (din.)</div></div>
