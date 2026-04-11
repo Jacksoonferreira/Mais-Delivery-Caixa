@@ -312,7 +312,7 @@ tr:hover td{background:#fafaf8;}
                   <option value="moeda">Negativo por moedas</option>
                   <option value="perdeu">Entregador perdeu</option>
                 </optgroup>
-                <optgroup label="— Registros separados —">
+                <optgroup label="— Envelope —">
                   <option value="pf-din">Pedido por fora pago em dinheiro</option>
                   <option value="pf-cart">Pedido por fora pago no cartão</option>
                   <option value="sem-troco">Estabelecimento sem troco</option>
@@ -378,7 +378,7 @@ tr:hover td{background:#fafaf8;}
       </div>
       <div class="aviso">
         <strong>Débita do caixa:</strong> Dinheiro→Cartão <span class="tag tag-deb">débita</span> Moedas <span class="tag tag-deb">débita</span> Entregador perdeu <span class="tag tag-deb">débita</span><br>
-        <strong>Registros separados (não afetam caixa):</strong> Pedido fora (din.) <span class="tag tag-sep">sep.</span> Estab. sem troco <span class="tag tag-sep">sep.</span> Cartão→Dinheiro <span class="tag tag-sep">sep.</span> Não pagou estab. <span class="tag tag-sep">sep.</span><br>
+        <strong>Envelope (não afetam caixa):</strong> Pedido fora (din.) <span class="tag tag-sep">env.</span> Estab. sem troco <span class="tag tag-sep">env.</span> Cartão→Dinheiro <span class="tag tag-sep">env.</span> Não pagou estab. <span class="tag tag-sep">env.</span><br>
         <strong>Aba exclusiva:</strong> Pedido fora (cartão) <span class="tag tag-pf">aba própria</span>
       </div>
       <div class="resumo-geral">
@@ -395,10 +395,10 @@ tr:hover td{background:#fafaf8;}
       <div class="admin-only">
         <div class="admin-only-header">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Registros separados — não afetam o caixa
+          Envelope — não afeta o caixa
         </div>
         <div class="admin-only-body">
-          <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Valores para controle — <strong>não entram no cálculo do caixa</strong>:</p>
+          <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Valores para controle — <strong>fazem parte do envelope</strong>:</p>
           <div class="admin-grid-4" id="admin-metrics"></div>
           <div class="admin-total-row" id="admin-total-row"></div>
         </div>
@@ -610,7 +610,7 @@ const USUARIOS=[
 const DEBITA=['din-cart','moeda','perdeu'];
 const DEBITO_ENT=['esq-cobrar','danificou','perdeu']; // débitos pessoais do entregador
 const FIXOS_AUTO=['LEONARDO MORENO','PATRIK HALLEY','LEANDRO SANTOS','HUGO','EDUARDO RODRIGUES'];
-const SEPARADOS=['pf-din','sem-troco','cart-din','nao-pagou'];
+const ENVELOPE_TIPOS=['pf-din','sem-troco','cart-din','nao-pagou'];
 const PF_CART='pf-cart';
 
 let currentUser=null,clockInterval=null,meuTurnoAtual=null,entParaFechar=null,entNomeParaFechar=null;
@@ -1289,7 +1289,7 @@ function atualizarDica(){
   // Mostrar/ocultar campos extras para danificou
   const extraDiv=document.getElementById('f-danificou-extra');
   if(extraDiv) extraDiv.style.display=t==='danificou'?'block':'none';
-  const map={'din-cart':['dica-neg','Cliente marcou dinheiro e pagou no cartão — DÉBITA do caixa.'],'moeda':['dica-neg','Caixa negativo por moedas — DÉBITA do caixa.'],'perdeu':['dica-neg','Entregador perdeu dinheiro — DÉBITA do caixa.'],'pf-din':['dica-sep','Pedido por fora pago em dinheiro — registrado separadamente, não afeta o caixa.'],'pf-cart':['dica-pf','Pedido por fora pago no cartão — vai para a aba exclusiva, não afeta o caixa.'],'sem-troco':['dica-sep','Estabelecimento sem troco — registrado separadamente, não afeta o caixa.'],'cart-din':['dica-sep','Cliente marcou cartão e pagou em dinheiro — registrado separadamente, não afeta o caixa.'],'nao-pagou':['dica-sep','Não pagou o estabelecimento — registrado separadamente, não afeta o caixa.'],
+  const map={'din-cart':['dica-neg','Cliente marcou dinheiro e pagou no cartão — DÉBITA do caixa.'],'moeda':['dica-neg','Caixa negativo por moedas — DÉBITA do caixa.'],'perdeu':['dica-neg','Entregador perdeu dinheiro — DÉBITA do caixa.'],'pf-din':['dica-sep','Pedido por fora pago em dinheiro — registrado no envelope, não afeta o caixa.'],'pf-cart':['dica-pf','Pedido por fora pago no cartão — vai para a aba exclusiva, não afeta o caixa.'],'sem-troco':['dica-sep','Estabelecimento sem troco — registrado no envelope, não afeta o caixa.'],'cart-din':['dica-sep','Cliente marcou cartão e pagou em dinheiro — registrado no envelope, não afeta o caixa.'],'nao-pagou':['dica-sep','Não pagou o estabelecimento — registrado no envelope, não afeta o caixa.'],
     'esq-cobrar':['dica-sep','Entregador esqueceu de cobrar do cliente — não afeta o caixa, será descontado do entregador semanalmente.'],
     'danificou':  ['dica-sep','Entregador danificou o pedido — não afeta o caixa, será descontado do entregador.']};
   el.className='dica';
@@ -1303,7 +1303,7 @@ const badgeHtml=t=>({'din-cart':'<span class="badge badge-dc">Dinheiro→Cartão
 const tipoLabel=t=>({'din-cart':'Dinheiro→Cartão','cart-din':'Cartão→Dinheiro','nao-pagou':'Não pagou estab.','moeda':'Moedas','perdeu':'Entregador perdeu','pf-din':'Pedido fora (din.)','pf-cart':'Pedido fora (cart.)','sem-troco':'Estab. sem troco',
   'esq-cobrar':'Esq. cobrar cliente',
   'danificou':'Danificou pedido'}[t]||t);
-const impactoHtml=t=>{if(DEBITA.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--red);">débita caixa</span>';if(t===PF_CART)return'<span style="font-size:11px;font-weight:700;color:var(--indigo);">aba cartão</span>';if(SEPARADOS.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--purple);">separado</span>';return'<span style="font-size:11px;color:var(--text3);">—</span>';};
+const impactoHtml=t=>{if(DEBITA.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--red);">débita caixa</span>';if(t===PF_CART)return'<span style="font-size:11px;font-weight:700;color:var(--indigo);">aba cartão</span>';if(ENVELOPE_TIPOS.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--purple);">envelope</span>';return'<span style="font-size:11px;color:var(--text3);">—</span>';};
 
 // LANÇAR
 async function lancar(){
@@ -1390,7 +1390,7 @@ async function renderMeuTurno(){
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
   const abertura=aberto?parseFloat(aberto.valor_abertura):100;
   const saldo=abertura-totalDebita;
-  const separadosVisiveis=lista.filter(o=>[PF_CART,'pf-din','sem-troco'].includes(o.tipo));
+  const envelopesVisiveis=lista.filter(o=>[PF_CART,'pf-din','sem-troco'].includes(o.tipo));
   if(aberto){
     sw.innerHTML=`<div class="turno-status-box aberto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -1407,11 +1407,11 @@ async function renderMeuTurno(){
       </div>
       <button class="btn btn-primary" onclick="fecharTurno(${aberto.id})">Encerrar meu turno</button>
     </div>`;
-    if(separadosVisiveis.length){sw.innerHTML+=`<div class="card" style="margin-top:1rem">
-      <div class="card-title">Registros separados do meu turno</div>
+    if(envelopesVisiveis.length){sw.innerHTML+=`<div class="card" style="margin-top:1rem">
+      <div class="card-title">Envelope do meu turno</div>
       <div class="table-wrap"><table>
         <thead><tr><th>Hora</th><th>Entregador</th><th>Pedido</th><th>Tipo</th><th>Valor</th><th>Obs.</th></tr></thead>
-        <tbody>${separadosVisiveis.map(o=>`<tr>
+        <tbody>${envelopesVisiveis.map(o=>`<tr>
           <td class="mono">${o.hora||'—'}</td><td>${o.entregador}</td><td class="mono">${o.pedido}</td>
           <td>${badgeHtml(o.tipo)}</td>
           <td class="mono" style="color:var(--purple);font-weight:600">${fmt(o.valor)}</td>
@@ -1579,7 +1579,7 @@ async function renderResumoTotal(){
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totStTroco)}</div><div class="admin-metric-lbl">Estab. sem troco</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totCartDin)}</div><div class="admin-metric-lbl">Cartão → Dinheiro</div></div>
     <div class="admin-metric"><div class="admin-metric-val">${fmt(totNaoPagou)}</div><div class="admin-metric-lbl">Não pagou estab.</div></div>`;
-  document.getElementById('admin-total-row').innerHTML=`<span class="admin-total-lbl">Total registros separados</span><span class="admin-total-val">${fmt(totalSep)}</span>`;
+  document.getElementById('admin-total-row').innerHTML=`<span class="admin-total-lbl">Total envelope</span><span class="admin-total-val">${fmt(totalSep)}</span>`;
 }
 
 async function renderFechamento(){
@@ -1622,22 +1622,22 @@ async function renderFechamento(){
   const wrap=document.getElementById('contador-wrap');
   const contagem={};
   lista.forEach(o=>{
-    if(!contagem[o.entregador])contagem[o.entregador]={total:0,debita:0,separado:0,pfcart:0};
+    if(!contagem[o.entregador])contagem[o.entregador]={total:0,debita:0,envelope:0,pfcart:0};
     contagem[o.entregador].total++;
     if(DEBITA.includes(o.tipo))contagem[o.entregador].debita++;
     else if(o.tipo===PF_CART)contagem[o.entregador].pfcart++;
-    else if(SEPARADOS.includes(o.tipo))contagem[o.entregador].separado++;
+    else if(ENVELOPE_TIPOS.includes(o.tipo))contagem[o.entregador].envelope++;
   });
   const sorted=Object.entries(contagem).sort((a,b)=>b[1].total-a[1].total);
   if(!sorted.length){wrap.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';}
   else{wrap.innerHTML=`<div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Entregador</th><th>Total</th><th>Débita caixa</th><th>Separados</th><th>Ped. fora (cart.)</th></tr></thead>
+    <thead><tr><th>#</th><th>Entregador</th><th>Total</th><th>Débita caixa</th><th>Envelopes</th><th>Ped. fora (cart.)</th></tr></thead>
     <tbody>${sorted.map(([nome,c],i)=>`<tr>
       <td class="mono" style="color:var(--text3)">${i+1}</td>
       <td style="font-weight:500">${nome}</td>
       <td class="mono">${c.total}</td>
       <td class="mono" style="color:${c.debita>0?'var(--red)':'var(--text3)'}">${c.debita}</td>
-      <td class="mono" style="color:${c.separado>0?'var(--purple)':'var(--text3)'}">${c.separado}</td>
+      <td class="mono" style="color:${c.envelope>0?'var(--purple)':'var(--text3)'}">${c.envelope}</td>
       <td class="mono" style="color:${c.pfcart>0?'var(--indigo)':'var(--text3)'}">${c.pfcart}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;}
@@ -1725,7 +1725,7 @@ async function exportarExcel(){
   const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro).order('hora_abertura');
   const wb=XLSX.utils.book_new();
   const ocsRows=[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Registrado por','Obs.']];
-  (ocs||[]).forEach(o=>{const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':SEPARADOS.includes(o.tipo)?'Separado':'—';ocsRows.push([o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),imp,o.registrado_por||'',o.obs||'']);});
+  (ocs||[]).forEach(o=>{const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':ENVELOPE_TIPOS.includes(o.tipo)?'Envelope':'—';ocsRows.push([o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),imp,o.registrado_por||'',o.obs||'']);});
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ocsRows),'Ocorrências');
   const tRows=[['Operador','Abertura','Fechamento','Valor Abertura','Valor Fechamento','Status']];
   (turnos||[]).forEach(t=>tRows.push([t.operador,t.hora_abertura,t.hora_fechamento||'',parseFloat(t.valor_abertura),t.valor_fechamento!=null?parseFloat(t.valor_fechamento):'',t.status]));
@@ -1756,7 +1756,7 @@ async function exportarPDF(){
   let y=30;
   if(inicial!=null){doc.text(`Inicial: ${fmt(inicial)}  |  Débitos: -${fmt(totalDebita)}  |  Esperado: ${fmt(esperado||0)}  |  Final: ${final_!=null?fmt(final_):'—'}  |  Diferença: ${difReal!=null?(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',','):'—'}`,14,y);y+=8;}
   doc.setFontSize(12);doc.setFont(undefined,'bold');doc.text('Ocorrências',14,y+4);y+=8;
-  doc.autoTable({startY:y,head:[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Por']],body:lista.map(o=>[o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),fmt(o.valor),DEBITA.includes(o.tipo)?'Débita':o.tipo===PF_CART?'Cart.':SEPARADOS.includes(o.tipo)?'Sep.':'—',o.registrado_por||'']),styles:{fontSize:8},headStyles:{fillColor:[232,69,30]},alternateRowStyles:{fillColor:[250,249,247]}});
+  doc.autoTable({startY:y,head:[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Por']],body:lista.map(o=>[o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),fmt(o.valor),DEBITA.includes(o.tipo)?'Débita':o.tipo===PF_CART?'Cart.':ENVELOPE_TIPOS.includes(o.tipo)?'Env.':'—',o.registrado_por||'']),styles:{fontSize:8},headStyles:{fillColor:[232,69,30]},alternateRowStyles:{fillColor:[250,249,247]}});
   if(entTurnos&&entTurnos.length){
     doc.addPage();
     doc.setFontSize(12);doc.setFont(undefined,'bold');doc.text('Entregadores do dia',14,16);
@@ -1992,8 +1992,8 @@ async function renderRelatorio(){
   const totalPfCart=lista.filter(o=>o.tipo==='pf-cart').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totalStTroco=lista.filter(o=>o.tipo==='sem-troco').reduce((s,o)=>s+parseFloat(o.valor),0);
   const totalNaoPagou=lista.filter(o=>o.tipo==='nao-pagou').reduce((s,o)=>s+parseFloat(o.valor),0);
-  const totalSeparados=totalPfDin+totalPfCart+totalStTroco+totalNaoPagou;
-  const diffDebitaSep=totalSeparados-totalDebita;
+  const totalEnvelopes=totalPfDin+totalPfCart+totalStTroco+totalNaoPagou;
+  const diffDebitaSep=totalEnvelopes-totalDebita;
   const totalCartDin=lista.filter(o=>o.tipo==='cart-din').reduce((s,o)=>s+parseFloat(o.valor),0);
   const diasComMovimento=[...new Set(lista.map(o=>o.data))].length;
   const totalEntregadores=[...new Set(entList.map(t=>t.entregador))].length;
@@ -2026,12 +2026,12 @@ async function renderRelatorio(){
           <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--red);">-${fmt(totalDebita)}</div>
         </div>
         <div style="background:var(--purple-bg);border:1px solid #ddd6fe;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
-          <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Registros separados</div>
-          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);">+${fmt(totalSeparados)}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Envelope</div>
+          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--purple);">+${fmt(totalEnvelopes)}</div>
         </div>
         <div style="background:${diffDebitaSep>=0?'var(--green-bg)':'var(--red-bg)'};border:1px solid ${diffDebitaSep>=0?'#bbf7d0':'#fca5a5'};border-radius:var(--radius-lg);padding:1rem;text-align:center;">
-          <div style="font-size:11px;font-weight:600;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Diferença (sep. − déb.)</div>
-          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};">${diffDebitaSep>=0?'+':''}${diffDebitaSep.toFixed(2).replace('.',',')}</div>
+          <div style="font-size:11px;font-weight:600;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Diferença (env. − déb.)</div>
+          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};">${diffDebitaSep>=0?'+':''}${diffDebitaEnv.toFixed(2).replace('.',',')}</div>
         </div>
       </div>
       <div class="admin-grid-4" style="margin-bottom:0;">
@@ -2085,7 +2085,7 @@ async function exportarRelatorioExcel(){
   const wb=XLSX.utils.book_new();
   const rows=[['Data','Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Impacto','Registrado por','Obs.']];
   (ocs||[]).forEach(o=>{
-    const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':SEPARADOS.includes(o.tipo)?'Separado':'—';
+    const imp=DEBITA.includes(o.tipo)?'Débita caixa':o.tipo===PF_CART?'Aba cartão':ENVELOPE_TIPOS.includes(o.tipo)?'Envelope':'—';
     rows.push([fmtDate(o.data),o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),imp,o.registrado_por||'',o.obs||'']);
   });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Ocorrências');
