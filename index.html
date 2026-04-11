@@ -2031,7 +2031,7 @@ async function renderRelatorio(){
         </div>
         <div style="background:${diffDebitaSep>=0?'var(--green-bg)':'var(--red-bg)'};border:1px solid ${diffDebitaSep>=0?'#bbf7d0':'#fca5a5'};border-radius:var(--radius-lg);padding:1rem;text-align:center;">
           <div style="font-size:11px;font-weight:600;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Diferença (env. − déb.)</div>
-          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};">${diffDebitaSep>=0?'+':''}${diffDebitaEnv.toFixed(2).replace('.',',')}</div>
+          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:${diffDebitaSep>=0?'var(--green)':'var(--red)'};">${diffDebitaSep>=0?'+':''}${diffDebitaSep.toFixed(2).replace('.',',')}</div>
         </div>
       </div>
       <div class="admin-grid-4" style="margin-bottom:0;">
