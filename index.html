@@ -1026,18 +1026,20 @@ async function renderDashboard(){
   const emRota=(entTurnos||[]).filter(t=>t.status==='aberto').length;
   const totalEnc=(entTurnos||[]).filter(t=>t.status==='fechado').length;
 
-  // Busca entregadores abertos (persistente) para calcular dinheiro
-  const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento').eq('status','aberto');
+  // Busca TODOS os entregadores do dia (abertos e fechados hoje)
+  const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status').eq('status','aberto');
+  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status').eq('data',filtro).eq('status','fechado');
+  const todosEntDia=[...(entAbertos||[]),...(entFechadosHoje||[])];
   // Busca débitos de hoje por entregador
   const{data:ocsHoje}=await sb.from('ocorrencias').select('entregador,tipo,valor').eq('data',filtro);
-  // Calcula débitos por entregador em rota
   const debitosEntMap={};
   (ocsHoje||[]).filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
     debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
   });
-  // Total saído com entregadores (saída + complemento) — isso sai do caixa
-  const totalSaidoComEnt=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  // Com entregadores = saída + complemento - débitos (dinheiro real que está com eles)
+  // Total saído = soma de tudo que saiu (abertos + fechados hoje)
+  // Complemento SOMA ao que está com o entregador, não debita do caixa
+  const totalSaidoComEnt=todosEntDia.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  // Com entregadores (só abertos) = saída + complemento - débitos
   const totalComEnt=(entAbertos||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const debitos=debitosEntMap[t.entregador]||0;
@@ -1045,7 +1047,7 @@ async function renderDashboard(){
   },0);
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
-  // Caixa = valor inicial - total saído com entregadores (os débitos ficam com o caixa, não voltam)
+  // Caixa = inicial - total saído (inclui abertos e fechados hoje)
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
   const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt:null;
 
@@ -1393,18 +1395,19 @@ async function renderResumoTotal(){
       <span class="resumo-val big ${difReal==null?'muted':difReal>=0?'green':'red'}">${difReal==null?'—':(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',',')}</span>
     </div>`;
   // SPLIT CAIXA / COM ENTREGADORES
-  const{data:entAbertosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento').eq('status','aberto');
+  const{data:entAbertosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status').eq('status','aberto');
+  const{data:entFechadosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status').eq('data',filtro).eq('status','fechado');
+  const todosEntRes=[...(entAbertosRes||[]),...(entFechadosRes||[])];
   const debitosEntRes={};
   lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{debitosEntRes[o.entregador]=(debitosEntRes[o.entregador]||0)+parseFloat(o.valor);});
-  // Total saído = o que saiu do caixa
-  const totalSaidoRes=(entAbertosRes||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  // Com entregadores = saída - débitos (o que eles têm de fato)
+  // Total saído = abertos + fechados hoje (complemento soma ao entregador)
+  const totalSaidoRes=todosEntRes.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  // Com entregadores (só abertos) = saída + complemento - débitos
   const totalComEntRes=(entAbertosRes||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const deb=debitosEntRes[t.entregador]||0;
     return s+Math.max(0,saida-deb);
   },0);
-  // Caixa = inicial - total saído (débitos não voltam pro caixa)
   const totalNoCaixaRes=inicial!=null?inicial-totalSaidoRes:null;
   const totalGeralRes=totalNoCaixaRes!=null?totalNoCaixaRes+totalComEntRes:null;
   const splitExist=document.getElementById('split-caixa-ent');
