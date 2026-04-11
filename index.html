@@ -955,12 +955,17 @@ async function editarBagCadastro(nome,bagAtual){
   toast('Bag atualizada no cadastro!');renderCtrlEnt();
 }
 
-function iniciarFecharEnt(id,nome,valorAbertura,complemento){
+async function iniciarFecharEnt(id,nome,valorAbertura,complemento){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   entParaFechar=id;
   entNomeParaFechar=nome;
-  // Esperado = só valor de abertura (complemento não entra no fechamento)
-  const esperado=parseFloat(valorAbertura)||100;
+  // Busca débitos já registrados hoje para este entregador
+  const{data:debitosEnt}=await sb.from('ocorrencias')
+    .select('valor').eq('entregador',nome).eq('data',todayStr()).in('tipo',DEBITA);
+  const totalDebitosJa=(debitosEnt||[]).reduce((s,o)=>s+parseFloat(o.valor),0);
+  // Esperado = valor de abertura - débitos já lançados (não debita duas vezes)
+  const aberturaBase=parseFloat(valorAbertura)||100;
+  const esperado=Math.max(0,aberturaBase-totalDebitosJa);
   document.getElementById('modal-fechar-titulo').textContent=`Encerrar — ${nome}`;
   document.getElementById('m-valor-volta').value=esperado.toFixed(2);
   document.getElementById('m-chuva').value='false';
@@ -968,7 +973,7 @@ function iniciarFecharEnt(id,nome,valorAbertura,complemento){
   document.getElementById('m-diff-aviso').style.display='none';
   // Fixos automáticos não devolvem por padrão
   document.getElementById('m-devolveu').value=FIXOS_AUTO.includes(nome)?'false':'true';
-  // Mostra aviso em tempo real conforme digita
+  // Aviso em tempo real
   document.getElementById('m-valor-volta').oninput=function(){
     const voltou=parseFloat(this.value)||0;
     const diff=voltou-esperado;
@@ -1002,9 +1007,12 @@ async function confirmarFecharEnt(){
     fecharModal('modal-fechar-ent');renderCtrlEnt();return;
   }
   const reg=registros[0];
-  // Esperado = apenas valor de abertura
-  // Complemento já saiu do caixa separadamente, não entra no cálculo de diferença
-  const esperado=parseFloat(reg.valor_abertura)||100;
+  // Busca débitos já registrados para este entregador hoje
+  const{data:debitosJaReg}=await sb.from('ocorrencias')
+    .select('valor').eq('entregador',reg.entregador).eq('data',todayStr()).in('tipo',DEBITA);
+  const totalDebitosJa=(debitosJaReg||[]).reduce((s,o)=>s+parseFloat(o.valor),0);
+  // Esperado = valor de abertura - débitos já lançados (evita debitar duas vezes)
+  const esperado=Math.max(0,(parseFloat(reg.valor_abertura)||100)-totalDebitosJa);
   const diff=valorVolta-esperado;
   const devolveu=document.getElementById('m-devolveu').value==='true';
   const ids=registros.map(r=>r.id);
