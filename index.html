@@ -1127,8 +1127,10 @@ async function renderDashboard(){
     debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
   });
   // Fechados que NÃO devolveram continuam contando como "com entregadores"
-  const entFechadosNaoDevolveu=(entFechadosHoje||[]).filter(t=>t.devolveu===false);
-  // Total saído do caixa = abertos + fechados que não devolveram
+  // Fechados que NÃO devolveram — excluir se já tem aberto para o mesmo entregador
+  const nomesAbertos=new Set((entAbertos||[]).map(t=>t.entregador));
+  const entFechadosNaoDevolveu=(entFechadosHoje||[]).filter(t=>t.devolveu===false&&!nomesAbertos.has(t.entregador));
+  // Total saído = abertos + fechados pendentes (sem duplicar)
   const totalSaidoComEnt=[...(entAbertos||[]),...entFechadosNaoDevolveu]
     .reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   // Com entregadores abertos = saída + complemento - débitos
@@ -1137,10 +1139,9 @@ async function renderDashboard(){
     const debitos=debitosEntMap[t.entregador]||0;
     return s+Math.max(0,saida-debitos);
   },0);
-  // + fechados que não devolveram (valor que voltaram com eles)
+  // + fechados pendentes (sem aberto ativo)
   const totalComEntNaoDevol=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_fechamento||t.valor_abertura||0),0);
   const totalComEnt=totalComEntAbertos+totalComEntNaoDevol;
-  const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
   const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt:null;
@@ -1514,7 +1515,8 @@ async function renderResumoTotal(){
   const{data:entFechadosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu').eq('data',filtro).eq('status','fechado');
   const debitosEntRes={};
   lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{debitosEntRes[o.entregador]=(debitosEntRes[o.entregador]||0)+parseFloat(o.valor);});
-  const entFechadosNaoDevRes=(entFechadosRes||[]).filter(t=>t.devolveu===false);
+  const nomesAbertosRes=new Set((entAbertosRes||[]).map(t=>t.entregador));
+  const entFechadosNaoDevRes=(entFechadosRes||[]).filter(t=>t.devolveu===false&&!nomesAbertosRes.has(t.entregador));
   const totalSaidoRes=[...(entAbertosRes||[]),...entFechadosNaoDevRes]
     .reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   const totalComEntAbRes=(entAbertosRes||[]).reduce((s,t)=>{
