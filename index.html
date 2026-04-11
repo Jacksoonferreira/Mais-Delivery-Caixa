@@ -2224,8 +2224,8 @@ async function buscarPorPedido(){
 // ═══════════════════════════════════════════
 async function verificarEntregadoresAbertos(){
   const hora=brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  // Só avisa após as 20:00
-  if(hora<'20:00')return;
+  // Só avisa após as 22:30
+  if(hora<'22:30')return;
   const{data:abertos}=await sb.from('entregadores_turno').select('entregador,hora_abertura').eq('status','aberto').order('hora_abertura');
   if(!abertos||!abertos.length)return;
   const alertEl=document.getElementById('dash-alerta-abertos');
