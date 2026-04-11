@@ -672,7 +672,8 @@ function showTab(name,btn){
 // TURNO DO OPERADOR
 async function carregarMeuTurno(){
   if(isAdmin()){meuTurnoAtual={status:'aberto'};atualizarPillTurno();return;}
-  const{data}=await sb.from('turnos').select('*').eq('data',todayStr()).eq('operador',currentUser.nome).eq('status','aberto').maybeSingle();
+  // Busca turno aberto sem filtro de data — se não fechou ontem, continua válido
+  const{data}=await sb.from('turnos').select('*').eq('operador',currentUser.nome).eq('status','aberto').order('created_at',{ascending:false}).limit(1).maybeSingle();
   meuTurnoAtual=data;
   atualizarPillTurno();
   atualizarBloqueioLancar();
@@ -1190,7 +1191,10 @@ async function renderMeuTurno(){
   document.getElementById('turno-data-label').textContent=fmtDate(data);
   const sw=document.getElementById('turno-status-wrap'),fw=document.getElementById('turno-form-wrap');
   sw.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';fw.innerHTML='';
-  const{data:turnos}=await sb.from('turnos').select('*').eq('data',data).eq('operador',currentUser.nome).order('created_at',{ascending:false});
+  // Busca turnos sem filtro de data — mostra abertos de dias anteriores + fechados de hoje
+  const{data:turnosAbertos}=await sb.from('turnos').select('*').eq('operador',currentUser.nome).eq('status','aberto').order('created_at',{ascending:false});
+  const{data:turnosHoje}=await sb.from('turnos').select('*').eq('data',data).eq('operador',currentUser.nome).eq('status','fechado').order('created_at',{ascending:false});
+  const turnos=[...(turnosAbertos||[]),...(turnosHoje||[])];
   const{data:ocsOp}=await sb.from('ocorrencias').select('*').eq('data',data).eq('registrado_por',currentUser.nome).order('created_at',{ascending:false});
   const lista=ocsOp||[];
   const aberto=turnos&&turnos.find(t=>t.status==='aberto');
@@ -1269,7 +1273,7 @@ async function abrirTurno(){
 async function fecharTurno(id){
   const val=parseFloat(document.getElementById('tf-valor').value);
   if(isNaN(val)||val<0){toast('Informe o valor de fechamento.','erro');return;}
-  const{error}=await sb.from('turnos').update({hora_fechamento:nowTimeShort(),valor_fechamento:val,status:'fechado'}).eq('id',id);
+  const{error}=await sb.from('turnos').update({hora_fechamento:nowTimeShort(),valor_fechamento:val,status:'fechado',data:todayStr()}).eq('id',id);
   if(error){toast('Erro ao fechar.','erro');return;}
   registrarLog(`Encerrou turno — R$ ${val.toFixed(2)}`);
   toast('Turno encerrado!');
