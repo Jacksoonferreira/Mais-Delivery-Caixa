@@ -456,7 +456,7 @@ tr:hover td{background:#fafaf8;}
           <input type="date" class="date-input" id="rep-ate" onchange="renderRepasse()">
         </div>
       </div>
-      <div class="aviso">Consolida todos os registros de <strong>Não pagou estabelecimento</strong> por estabelecimento para facilitar o desconto no repasse semanal.</div>
+      <div class="aviso">Consolida registros de <strong>Não pagou estabelecimento</strong> e <strong>Estabelecimento sem troco</strong> por estabelecimento para facilitar o desconto no repasse semanal.</div>
       <div id="rep-resumo"></div>
       <div id="rep-lista"></div>
     </div>
@@ -527,10 +527,14 @@ tr:hover td{background:#fafaf8;}
 <div class="modal-overlay" id="modal-fechar-ent">
   <div class="modal">
     <div class="modal-title" id="modal-fechar-titulo">Encerrar turno</div>
-    <div class="field"><label>Rodou na chuva?</label>
-      <select id="m-chuva"><option value="false">Não</option><option value="true">Sim</option></select>
+    <div class="row2">
+      <div class="field"><label>Valor que voltou (R$)</label><input type="number" id="m-valor-volta" placeholder="0,00" step="0.01" min="0"></div>
+      <div class="field"><label>Rodou na chuva?</label>
+        <select id="m-chuva"><option value="false">Não</option><option value="true">Sim</option></select>
+      </div>
     </div>
     <div class="field"><label>Observação</label><input type="text" id="m-obs" placeholder="Opcional"></div>
+    <div id="m-diff-aviso" style="display:none;padding:8px 12px;background:var(--red-bg);border-left:3px solid var(--red);border-radius:var(--radius);font-size:12px;color:#991b1b;margin-bottom:12px;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-fechar-ent')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarFecharEnt()">Encerrar</button>
@@ -568,6 +572,7 @@ const isAdmin=()=>currentUser&&currentUser.role==='admin';
 const canCad=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='operador_cad');
 const turnoAberto=()=>meuTurnoAtual&&meuTurnoAtual.status==='aberto';
 const podeAgir=()=>isAdmin()||turnoAberto();
+const podeDash=()=>true; // dashboard sempre visível
 
 function loadSession(){try{const s=sessionStorage.getItem('md_v8');if(s){currentUser=JSON.parse(s);mostrarApp();}}catch(e){}}
 
@@ -600,9 +605,9 @@ function buildNav(){
     h+=`<button class="tab" onclick="showTab('pf-cart',this)">Pedidos fora (cartão)</button>`;
   }
   if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Cadastro</button>`;
+  h+=`<button class="tab" onclick="showTab('repasse',this)">Repasse</button>`;
   if(isAdmin()){
     h+=`<button class="tab" onclick="showTab('historico',this)">Histórico</button>`;
-    h+=`<button class="tab" onclick="showTab('repasse',this)">Repasse</button>`;
     h+=`<button class="tab" onclick="showTab('relatorio',this)">Relatório</button>`;
     h+=`<button class="tab" onclick="showTab('log',this)">Log</button>`;
   }
@@ -790,7 +795,7 @@ function renderEntGrid(turnosMap){
         `:`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Ainda não entrou hoje.</div>`}
         <div class="ent-actions">
           ${!t&&podeAgir()?`<button class="btn btn-green btn-sm" onclick="abrirEntregador('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}','${(e.maquina_fixa||'').replace(/'/g,"\\'")}')">▶ Abrir</button>`:''}
-          ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}')">■ Encerrar</button>`:''}
+          ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}',${parseFloat(t.valor_abertura||100)},${parseFloat(t.complemento||0)})">■ Encerrar</button>`:''}
           ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-amber" onclick="reabrirEntregador(${t.id},'${e.nome.replace(/'/g,"\\'")}')">↺ Desfazer</button>`:''}
           ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-green" onclick="abrirEntregador('${e.nome.replace(/'/g,"\'")}','${(e.bag||'').replace(/'/g,"\'")}','${(e.maquina_fixa||'').replace(/'/g,"\'")}')">▶ Novo turno</button>`:''}
           ${(isAdmin()||canCad())?`<button class="btn btn-sm" onclick="editarBagCadastro('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
@@ -871,25 +876,41 @@ async function editarBagCadastro(nome,bagAtual){
   toast('Bag atualizada no cadastro!');renderCtrlEnt();
 }
 
-function iniciarFecharEnt(id,nome){
+function iniciarFecharEnt(id,nome,valorAbertura,complemento){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   entParaFechar=id;
   entNomeParaFechar=nome;
+  const esperado=(parseFloat(valorAbertura)||100)+(parseFloat(complemento)||0);
   document.getElementById('modal-fechar-titulo').textContent=`Encerrar — ${nome}`;
+  document.getElementById('m-valor-volta').value=esperado.toFixed(2);
   document.getElementById('m-chuva').value='false';
   document.getElementById('m-obs').value='';
+  document.getElementById('m-diff-aviso').style.display='none';
+  // Mostra aviso em tempo real conforme digita
+  document.getElementById('m-valor-volta').oninput=function(){
+    const voltou=parseFloat(this.value)||0;
+    const diff=voltou-esperado;
+    const av=document.getElementById('m-diff-aviso');
+    if(voltou<esperado){
+      av.style.display='block';
+      av.textContent=`Voltou R$ ${Math.abs(diff).toFixed(2).replace('.',',')} abaixo do esperado (${fmt(esperado)}) — será abatido do caixa.`;
+    } else {
+      av.style.display='none';
+    }
+  };
   document.getElementById('modal-fechar-ent').classList.add('open');
 }
 
 async function confirmarFecharEnt(){
   const chuva=document.getElementById('m-chuva').value==='true';
   const obs=document.getElementById('m-obs').value.trim();
+  const valorVolta=parseFloat(document.getElementById('m-valor-volta').value)||0;
   const hora=nowTimeShort();
   const btn=document.querySelector('#modal-fechar-ent .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='Encerrando...';}
-  // Busca direto pelo nome do entregador — evita problema de id desatualizado
+  // Busca pelo nome — evita problema de id desatualizado, fecha todos os abertos
   const{data:registros,error:buscarErr}=await sb.from('entregadores_turno')
-    .select('id,entregador')
+    .select('id,entregador,valor_abertura,complemento')
     .eq('entregador',entNomeParaFechar)
     .eq('status','aberto')
     .order('id',{ascending:false});
@@ -898,6 +919,32 @@ async function confirmarFecharEnt(){
     toast('Registro não encontrado.','erro');
     fecharModal('modal-fechar-ent');renderCtrlEnt();return;
   }
+  const reg=registros[0];
+  const esperado=(parseFloat(reg.valor_abertura)||100)+(parseFloat(reg.complemento)||0);
+  const diff=valorVolta-esperado;
+  const ids=registros.map(r=>r.id);
+  const{error}=await sb.from('entregadores_turno')
+    .update({hora_fechamento:hora,chuva,obs,status:'fechado',data_fechamento:todayStr(),valor_fechamento:valorVolta})
+    .in('id',ids);
+  if(btn){btn.disabled=false;btn.textContent='Encerrar';}
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  // Se voltou abaixo do esperado, abate do caixa como débito
+  if(diff<0){
+    const abate=Math.abs(diff);
+    await sb.from('ocorrencias').insert({
+      data:todayStr(),hora,entregador:reg.entregador,
+      pedido:'—',estabelecimento:'Fechamento de caixa',
+      tipo:'perdeu',valor:abate,
+      obs:`Voltou abaixo do esperado — esperado ${fmt(esperado)}, voltou ${fmt(valorVolta)}`,
+      registrado_por:currentUser.nome
+    });
+    toast(`${reg.entregador} encerrado — R$ ${abate.toFixed(2).replace('.',',')} abatido do caixa.`);
+  } else {
+    toast(`${reg.entregador} encerrado!`);
+  }
+  registrarLog(`Encerrou entregador: ${reg.entregador} — voltou ${fmt(valorVolta)}`);
+  fecharModal('modal-fechar-ent');renderCtrlEnt();renderLista();
+}
   // Fecha TODOS os registros abertos deste entregador (resolve duplicatas)
   const ids=registros.map(r=>r.id);
   const{error}=await sb.from('entregadores_turno')
@@ -922,10 +969,18 @@ document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('cli
 
 // SELECT ENTREGADORES
 async function carregarEntregadoresSelect(){
+  // Só mostra entregadores em rota no momento
+  const{data:emRota}=await sb.from('entregadores_turno').select('entregador').eq('status','aberto');
+  const nomesEmRota=new Set((emRota||[]).map(t=>t.entregador));
   const{data}=await sb.from('entregadores').select('nome,bag,maquina_fixa').eq('ativo',true).order('nome');
   const sel=document.getElementById('f-entregador');
   if(!sel)return;
-  sel.innerHTML='<option value="">Selecione...</option>'+(data||[]).map(e=>`<option value="${e.nome}" data-bag="${e.bag||''}" data-maquina="${e.maquina_fixa||''}">${e.nome}</option>`).join('');
+  const filtrados=(data||[]).filter(e=>nomesEmRota.has(e.nome));
+  if(!filtrados.length){
+    sel.innerHTML='<option value="">Nenhum entregador em rota</option>';
+    return;
+  }
+  sel.innerHTML='<option value="">Selecione o entregador...</option>'+filtrados.map(e=>`<option value="${e.nome}" data-bag="${e.bag||''}" data-maquina="${e.maquina_fixa||''}">${e.nome}</option>`).join('');
 }
 
 // CADASTRO
@@ -1243,13 +1298,18 @@ async function renderMeuTurno(){
         <span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status}</span>
       </div>`).join('')}</div>`:''}
     </div>`;
+    // Busca último fechamento para sugerir valor de abertura
+    const{data:ultimoFechado}=await sb.from('turnos').select('valor_fechamento').eq('operador',currentUser.nome).eq('status','fechado').not('valor_fechamento','is',null).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    const valorSugerido=ultimoFechado?.valor_fechamento!=null?parseFloat(ultimoFechado.valor_fechamento):100;
+    const avisoSug=ultimoFechado?.valor_fechamento!=null?`Sugerido com base no seu último fechamento (${fmt(valorSugerido)})`:'Valor padrão de abertura: R$ 100,00';
     fw.innerHTML=`<div class="card">
       <div class="card-title">Abrir meu turno</div>
       <div class="row2">
         <div class="field"><label>Data</label><input type="text" id="ta-data" readonly value="${fmtDate(data)}"></div>
         <div class="field"><label>Hora de abertura</label><input type="text" id="ta-hora" readonly value="${nowTimeShort()}"></div>
       </div>
-      <div class="field"><label>Valor de abertura (R$)</label><input type="number" id="ta-valor" value="100" step="0.01" min="0"></div>
+      <div class="field"><label>Valor de abertura (R$)</label><input type="number" id="ta-valor" value="${valorSugerido.toFixed(2)}" step="0.01" min="0"></div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">${avisoSug}</div>
       <button class="btn btn-green" onclick="abrirTurno()">Abrir turno agora</button>
     </div>`;
   }
@@ -1262,12 +1322,26 @@ async function abrirTurno(){
   const{error}=await sb.from('turnos').insert({data,operador:currentUser.nome,hora_abertura:hora,valor_abertura:val,status:'aberto'});
   btn.disabled=false;
   if(error){toast('Erro: '+error.message,'erro');btn.textContent='Abrir turno agora';return;}
+  // Se for o primeiro turno do dia, define automaticamente o valor inicial do caixa
+  const{data:turnosHoje}=await sb.from('turnos').select('id').eq('data',data).order('created_at',{ascending:true});
+  if(turnosHoje&&turnosHoje.length===1){
+    // É o primeiro — verifica se já tem valor_inicial definido
+    const{data:diaEx}=await sb.from('caixa_dia').select('id,valor_inicial').eq('data',data).maybeSingle();
+    if(!diaEx){
+      await sb.from('caixa_dia').upsert({data,valor_inicial:val},{onConflict:'data'});
+      toast('Turno aberto — valor inicial do caixa definido automaticamente!');
+    } else {
+      toast('Turno aberto!');
+    }
+  } else {
+    toast('Turno aberto!');
+  }
   registrarLog(`Abriu turno — R$ ${val.toFixed(2)}`);
-  toast('Turno aberto!');
   await carregarMeuTurno();
   renderMeuTurno();
   atualizarBloqueioLancar();
   atualizarBloqueioCtrl();
+  carregarEntregadoresSelect();
 }
 
 async function fecharTurno(id){
@@ -1696,7 +1770,7 @@ async function renderRepasse(){
   resumoEl.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   listaEl.innerHTML='';
   // Busca ocorrências de não pagou estabelecimento no período
-  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('tipo','nao-pagou').gte('data',de).lte('data',ate).order('estabelecimento').order('data');
+  const{data:ocs}=await sb.from('ocorrencias').select('*').in('tipo',['nao-pagou','sem-troco']).gte('data',de).lte('data',ate).order('estabelecimento').order('data');
   const lista=ocs||[];
   const total=lista.reduce((s,o)=>s+parseFloat(o.valor),0);
   // Agrupa por estabelecimento
