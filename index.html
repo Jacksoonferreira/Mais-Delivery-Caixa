@@ -959,7 +959,8 @@ function iniciarFecharEnt(id,nome,valorAbertura,complemento){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   entParaFechar=id;
   entNomeParaFechar=nome;
-  const esperado=(parseFloat(valorAbertura)||100)+(parseFloat(complemento)||0);
+  // Esperado = só valor de abertura (complemento não entra no fechamento)
+  const esperado=parseFloat(valorAbertura)||100;
   document.getElementById('modal-fechar-titulo').textContent=`Encerrar — ${nome}`;
   document.getElementById('m-valor-volta').value=esperado.toFixed(2);
   document.getElementById('m-chuva').value='false';
@@ -1001,7 +1002,9 @@ async function confirmarFecharEnt(){
     fecharModal('modal-fechar-ent');renderCtrlEnt();return;
   }
   const reg=registros[0];
-  const esperado=(parseFloat(reg.valor_abertura)||100)+(parseFloat(reg.complemento)||0);
+  // Esperado = apenas valor de abertura
+  // Complemento já saiu do caixa separadamente, não entra no cálculo de diferença
+  const esperado=parseFloat(reg.valor_abertura)||100;
   const diff=valorVolta-esperado;
   const devolveu=document.getElementById('m-devolveu').value==='true';
   const ids=registros.map(r=>r.id);
@@ -1109,7 +1112,7 @@ async function renderDashboard(){
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
   const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro);
   const lista=ocs||[];
-  const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)&&o.estabelecimento!=='Fechamento de caixa').reduce((s,o)=>s+parseFloat(o.valor),0);
   const emRota=(entTurnos||[]).filter(t=>t.status==='aberto').length;
   const totalEnc=(entTurnos||[]).filter(t=>t.status==='fechado').length;
 
@@ -1179,7 +1182,7 @@ async function renderDashboard(){
 
 // GRÁFICO 1: Débitos por entregador (barras horizontais)
   const debitosEnt={};
-  lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
+  lista.filter(o=>DEBITA.includes(o.tipo)&&o.estabelecimento!=='Fechamento de caixa').forEach(o=>{
     debitosEnt[o.entregador]=(debitosEnt[o.entregador]||0)+parseFloat(o.valor);
   });
   const entSorted=Object.entries(debitosEnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
