@@ -578,6 +578,13 @@ tr:hover td{background:#fafaf8;}
     </div>
     <div class="field"><label>Observação</label><input type="text" id="m-obs" placeholder="Opcional"></div>
     <div id="m-diff-aviso" style="display:none;padding:8px 12px;background:var(--red-bg);border-left:3px solid var(--red);border-radius:var(--radius);font-size:12px;color:#991b1b;margin-bottom:12px;"></div>
+    <div class="field">
+      <label>Entregador devolveu o dinheiro?</label>
+      <select id="m-devolveu">
+        <option value="true">Sim — valor volta para o caixa</option>
+        <option value="false">Não — continua com o entregador</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-fechar-ent')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarFecharEnt()">Encerrar</button>
@@ -602,6 +609,7 @@ const USUARIOS=[
 
 const DEBITA=['din-cart','moeda','perdeu'];
 const DEBITO_ENT=['esq-cobrar','danificou','perdeu']; // débitos pessoais do entregador
+const FIXOS_AUTO=['LEONARDO MORENO','PATRIK HALLEY','LEANDRO SANTOS','HUGO','EDUARDO RODRIGUES'];
 const SEPARADOS=['pf-din','sem-troco','cart-din','nao-pagou'];
 const PF_CART='pf-cart';
 
@@ -833,6 +841,8 @@ function renderEntGrid(turnosMap){
           ${parseFloat(t.complemento||0)>0?`<span class="ent-info" style="color:var(--green);font-weight:600">+${fmt(t.complemento)}</span>`:''}
         </div>
         ${t.obs?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${t.obs}</div>`:''}
+        ${isFechado&&t.devolveu===false?`<div style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px;">⚠️ Não devolveu — R$ ${parseFloat(t.valor_fechamento||t.valor_abertura||0).toFixed(2).replace('.',',')} pendente</div>`:''}
+        ${isFechado&&t.devolveu===true&&t.hora_devolucao?`<div style="font-size:12px;color:var(--green);margin-bottom:8px;">✅ Devolveu às ${t.hora_devolucao} — recebido por ${t.operador_devolucao||'—'}</div>`:''}
         ${isAberto?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">Complemento R$</label>
           <input type="number" id="comp-${t.id}" value="${parseFloat(t.complemento||0).toFixed(2)}" step="0.01" min="0" style="width:100px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;">
@@ -844,6 +854,7 @@ function renderEntGrid(turnosMap){
           ${isAberto&&podeAgir()?`<button class="btn btn-primary btn-sm" onclick="iniciarFecharEnt(${t.id},'${e.nome.replace(/'/g,"\\'")}',${parseFloat(t.valor_abertura||100)},${parseFloat(t.complemento||0)})">■ Encerrar</button>`:''}
           ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-amber" onclick="reabrirEntregador(${t.id},'${e.nome.replace(/'/g,"\\'")}')">↺ Desfazer</button>`:''}
           ${isFechado&&podeAgir()?`<button class="btn btn-sm btn-green" onclick="abrirEntregador('${e.nome.replace(/'/g,"\'")}','${(e.bag||'').replace(/'/g,"\'")}','${(e.maquina_fixa||'').replace(/'/g,"\'")}')">▶ Novo turno</button>`:''}
+          ${isFechado&&t.devolveu===false&&podeAgir()?`<button class="btn btn-sm btn-blue" onclick="registrarDevolucao(${t.id},'${e.nome.replace(/'/g,"\\'")}')">💵 Registrar devolução</button>`:''}
           ${(isAdmin()||canCad())?`<button class="btn btn-sm" onclick="editarBagCadastro('${e.nome.replace(/'/g,"\\'")}','${(e.bag||'').replace(/'/g,"\\'")}')">✏ Bag</button>`:''}
         </div>
       </div>
@@ -906,6 +917,21 @@ async function salvarComplemento(id){
   toast('Complemento atualizado!');renderCtrlEnt();
 }
 
+
+async function registrarDevolucao(id, nome){
+  if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
+  if(!confirm(`Registrar devolução de ${nome}?`))return;
+  const hora=nowTimeShort();
+  const{error}=await sb.from('entregadores_turno')
+    .update({devolveu:true, hora_devolucao:hora, operador_devolucao:currentUser.nome})
+    .eq('id',id);
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  registrarLog(`Registrou devolução de ${nome} às ${hora}`);
+  toast(`Devolução de ${nome} registrada!`);
+  renderCtrlEnt();
+  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+}
+
 async function reabrirEntregador(id,nome){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
   if(!confirm(`Desfazer encerramento de ${nome}?`))return;
@@ -932,6 +958,8 @@ function iniciarFecharEnt(id,nome,valorAbertura,complemento){
   document.getElementById('m-chuva').value='false';
   document.getElementById('m-obs').value='';
   document.getElementById('m-diff-aviso').style.display='none';
+  // Fixos automáticos não devolvem por padrão
+  document.getElementById('m-devolveu').value=FIXOS_AUTO.includes(nome)?'false':'true';
   // Mostra aviso em tempo real conforme digita
   document.getElementById('m-valor-volta').oninput=function(){
     const voltou=parseFloat(this.value)||0;
@@ -968,27 +996,33 @@ async function confirmarFecharEnt(){
   const reg=registros[0];
   const esperado=(parseFloat(reg.valor_abertura)||100)+(parseFloat(reg.complemento)||0);
   const diff=valorVolta-esperado;
+  const devolveu=document.getElementById('m-devolveu').value==='true';
   const ids=registros.map(r=>r.id);
+  const horaDevol=devolveu?hora:null;
+  const operDevol=devolveu?currentUser.nome:null;
   const{error}=await sb.from('entregadores_turno')
-    .update({hora_fechamento:hora,chuva,obs,status:'fechado',data_fechamento:todayStr(),valor_fechamento:valorVolta})
+    .update({hora_fechamento:hora,chuva,obs,status:'fechado',data_fechamento:todayStr(),
+      valor_fechamento:valorVolta,devolveu,
+      hora_devolucao:horaDevol,operador_devolucao:operDevol})
     .in('id',ids);
   if(btn){btn.disabled=false;btn.textContent='Encerrar';}
   if(error){toast('Erro: '+error.message,'erro');return;}
-  // Se voltou abaixo do esperado, abate do caixa como débito
+  // Abate APENAS a diferença (não o valor total)
   if(diff<0){
     const abate=Math.abs(diff);
     await sb.from('ocorrencias').insert({
       data:todayStr(),hora,entregador:reg.entregador,
       pedido:'—',estabelecimento:'Fechamento de caixa',
       tipo:'perdeu',valor:abate,
-      obs:`Voltou abaixo do esperado — esperado ${fmt(esperado)}, voltou ${fmt(valorVolta)}`,
+      obs:`Diferença no fechamento — esperado ${fmt(esperado)}, voltou ${fmt(valorVolta)}`,
       registrado_por:currentUser.nome
     });
-    toast(`${reg.entregador} encerrado — R$ ${abate.toFixed(2).replace('.',',')} abatido do caixa.`);
+    toast(`${reg.entregador} encerrado — diferença de R$ ${abate.toFixed(2).replace('.',',')} abatida.`);
   } else {
     toast(`${reg.entregador} encerrado!`);
   }
-  registrarLog(`Encerrou entregador: ${reg.entregador} — voltou ${fmt(valorVolta)}`);
+  registrarLog(`Encerrou: ${reg.entregador} — voltou ${fmt(valorVolta)} — devolveu: ${devolveu?'sim':'não'}`);
+  fecharModal('modal-fechar-ent');renderCtrlEnt();renderLista();
   fecharModal('modal-fechar-ent');renderCtrlEnt();renderLista();
 }
 
@@ -1073,8 +1107,8 @@ async function renderDashboard(){
   const totalEnc=(entTurnos||[]).filter(t=>t.status==='fechado').length;
 
   // Busca TODOS os entregadores do dia (abertos e fechados hoje)
-  const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status').eq('status','aberto');
-  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status').eq('data',filtro).eq('status','fechado');
+  const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status,devolveu').eq('status','aberto');
+  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('data',filtro).eq('status','fechado');
   const todosEntDia=[...(entAbertos||[]),...(entFechadosHoje||[])];
   // Busca débitos de hoje por entregador
   const{data:ocsHoje}=await sb.from('ocorrencias').select('entregador,tipo,valor').eq('data',filtro);
@@ -1082,18 +1116,22 @@ async function renderDashboard(){
   (ocsHoje||[]).filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
     debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
   });
-  // Total saído = soma de tudo que saiu (abertos + fechados hoje)
-  // Complemento SOMA ao que está com o entregador, não debita do caixa
-  const totalSaidoComEnt=todosEntDia.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  // Com entregadores (só abertos) = saída + complemento - débitos
-  const totalComEnt=(entAbertos||[]).reduce((s,t)=>{
+  // Fechados que NÃO devolveram continuam contando como "com entregadores"
+  const entFechadosNaoDevolveu=(entFechadosHoje||[]).filter(t=>t.devolveu===false);
+  // Total saído do caixa = abertos + fechados que não devolveram
+  const totalSaidoComEnt=[...(entAbertos||[]),...entFechadosNaoDevolveu]
+    .reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  // Com entregadores abertos = saída + complemento - débitos
+  const totalComEntAbertos=(entAbertos||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const debitos=debitosEntMap[t.entregador]||0;
     return s+Math.max(0,saida-debitos);
   },0);
+  // + fechados que não devolveram (valor que voltaram com eles)
+  const totalComEntNaoDevol=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_fechamento||t.valor_abertura||0),0);
+  const totalComEnt=totalComEntAbertos+totalComEntNaoDevol;
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
-  // Caixa = inicial - total saído (inclui abertos e fechados hoje)
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
   const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt:null;
 
@@ -1462,19 +1500,19 @@ async function renderResumoTotal(){
       <span class="resumo-val big ${difReal==null?'muted':difReal>=0?'green':'red'}">${difReal==null?'—':(difReal>=0?'+':'')+difReal.toFixed(2).replace('.',',')}</span>
     </div>`;
   // SPLIT CAIXA / COM ENTREGADORES
-  const{data:entAbertosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status').eq('status','aberto');
-  const{data:entFechadosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status').eq('data',filtro).eq('status','fechado');
-  const todosEntRes=[...(entAbertosRes||[]),...(entFechadosRes||[])];
+  const{data:entAbertosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status,devolveu').eq('status','aberto');
+  const{data:entFechadosRes}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu').eq('data',filtro).eq('status','fechado');
   const debitosEntRes={};
   lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{debitosEntRes[o.entregador]=(debitosEntRes[o.entregador]||0)+parseFloat(o.valor);});
-  // Total saído = abertos + fechados hoje (complemento soma ao entregador)
-  const totalSaidoRes=todosEntRes.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  // Com entregadores (só abertos) = saída + complemento - débitos
-  const totalComEntRes=(entAbertosRes||[]).reduce((s,t)=>{
+  const entFechadosNaoDevRes=(entFechadosRes||[]).filter(t=>t.devolveu===false);
+  const totalSaidoRes=[...(entAbertosRes||[]),...entFechadosNaoDevRes]
+    .reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalComEntAbRes=(entAbertosRes||[]).reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const deb=debitosEntRes[t.entregador]||0;
     return s+Math.max(0,saida-deb);
   },0);
+  const totalComEntRes=totalComEntAbRes+entFechadosNaoDevRes.reduce((s,t)=>s+parseFloat(t.valor_fechamento||t.valor_abertura||0),0);
   const totalNoCaixaRes=inicial!=null?inicial-totalSaidoRes:null;
   const totalGeralRes=totalNoCaixaRes!=null?totalNoCaixaRes+totalComEntRes:null;
   const splitExist=document.getElementById('split-caixa-ent');
