@@ -231,6 +231,7 @@ tr:hover td{background:#fafaf8;}
         </div>
       </div>
       <div id="dash-alerta-abertos" style="display:none;"></div>
+      <div id="dash-pendentes"></div>
       <div class="dash-grid" id="dash-grid"></div>
       <div id="dash-split" style="margin-bottom:1rem;"></div>
       <div class="row2" style="margin-bottom:1rem;">
@@ -816,12 +817,11 @@ async function renderCtrlEnt(){
   const{data:abertos}=await sb.from('entregadores_turno').select('*').eq('status','aberto').order('id',{ascending:false});
   // Fechados que não devolveram (qualquer data) — só o mais recente por entregador
   const{data:fechadosPendentes}=await sb.from('entregadores_turno').select('*').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
-  // Deduplicar — manter apenas o registro mais recente por entregador
   const fechPendMap={};
   (fechadosPendentes||[]).forEach(t=>{if(!fechPendMap[t.entregador])fechPendMap[t.entregador]=t;});
   const fechadosPendentesUnicos=Object.values(fechPendMap);
-  // Fechados de hoje que devolveram — para mostrar o status do dia
-  const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).eq('status','fechado').order('id',{ascending:false});
+  // Fechados do PERÍODO atual (não do dia calendário)
+  const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',periodStr()).eq('status','fechado').order('id',{ascending:false});
   entregadoresList=ents||[];
   const turnosMap={};
   (abertos||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
@@ -903,7 +903,7 @@ function renderEntGrid(turnosMap){
 async function filtrarEntregadores(){
   const{data:abertos}=await sb.from('entregadores_turno').select('*').eq('status','aberto').order('id',{ascending:false});
   const{data:fechadosPend}=await sb.from('entregadores_turno').select('*').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
-  const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).eq('status','fechado').order('id',{ascending:false});
+  const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',periodStr()).eq('status','fechado').order('id',{ascending:false});
   const turnosMap={};
   (abertos||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   (fechadosPend||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
@@ -1157,11 +1157,14 @@ async function renderDashboard(){
   const periodo=filtro===todayStr()?periodStr():filtro;
   const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',periodo).order('created_at');
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',periodo).order('hora_abertura');
-  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',periodo);
+  // Abertos: sem filtro de data (persistem entre dias)
+  const{data:entAbertosCount}=await sb.from('entregadores_turno').select('id,entregador').eq('status','aberto');
+  // Fechados: apenas do período atual
+  const{data:entFechadosPeriodo}=await sb.from('entregadores_turno').select('id').eq('data',periodo).eq('status','fechado');
   const lista=ocs||[];
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)&&o.estabelecimento!=='Fechamento de caixa').reduce((s,o)=>s+parseFloat(o.valor),0);
-  const emRota=(entTurnos||[]).filter(t=>t.status==='aberto').length;
-  const totalEnc=(entTurnos||[]).filter(t=>t.status==='fechado').length;
+  const emRota=(entAbertosCount||[]).length;
+  const totalEnc=(entFechadosPeriodo||[]).length;
 
   // Busca TODOS os entregadores do dia (abertos e fechados hoje)
   const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status,devolveu').eq('status','aberto');
@@ -1219,6 +1222,24 @@ async function renderDashboard(){
     <div class="dash-card" style="border-color:var(--purple)"><div class="dash-val" style="color:var(--purple)">${lista.length}</div><div class="dash-lbl">Ocorrências no dia</div></div>`;
 
   // SPLIT CAIXA / ENTREGADORES
+  // Monta lista de entregadores com dinheiro pendente
+  const pendentes=[...entFechadosNaoDevolveu];
+  const pendentesHtml=pendentes.length?`
+    <div style="background:#fffbeb;border:1.5px solid var(--amber);border-radius:var(--radius-lg);padding:1rem;margin-bottom:1rem;">
+      <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">
+        💰 Entregadores com dinheiro pendente (${pendentes.length})
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
+        ${pendentes.map(t=>`
+          <div style="background:#fff;border:1px solid #fde68a;border-radius:var(--radius);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:500;">${t.entregador}</span>
+            <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--amber);">R$ ${parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0).toFixed(2).replace('.',',')}</span>
+          </div>`).join('')}
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#92400e;font-weight:600;">Total pendente: R$ ${totalComEntNaoDevol.toFixed(2).replace('.',',')}</div>
+    </div>`:'';
+  document.getElementById('dash-pendentes').innerHTML=pendentesHtml;
+
   const splitEl=document.getElementById('dash-split')||createSplitEl();
   splitEl.innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
