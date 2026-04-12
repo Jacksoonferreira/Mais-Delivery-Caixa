@@ -1205,12 +1205,16 @@ async function renderDashboard(){
   });
   const entFechadosNaoDevolveu=Object.values(naoDevMap);
 
-  // Busca fechados do período que devolveram (para calcular o que voltou ao caixa)
+  // ── CÁLCULO CORRETO ──
+  // ABERTOS: valor_abertura + complemento saem do caixa e vão para "com entregadores"
+  // PENDENTES (fechados não devolveram, sem aberto mais recente): ficam numa aba separada
+  // FECHADOS que devolveram: valor_fechamento volta ao caixa (diferença fica fora)
+
+  // Busca fechados do período que devolveram
   const{data:entFechadosDevDb}=await sb.from('entregadores_turno')
     .select('entregador,valor_abertura,complemento,valor_fechamento,devolveu,id')
     .eq('status','fechado').neq('devolveu',false)
     .eq('data',periodo).order('id',{ascending:false});
-  // Dedup — mais recente por entregador, excluindo quem tem aberto mais recente
   const devMap={};
   (entFechadosDevDb||[]).forEach(t=>{
     const idAberto=maxIdAbertosMap[t.entregador]||0;
@@ -1219,33 +1223,33 @@ async function renderDashboard(){
   });
   const entFechadosDevolveu=Object.values(devMap);
 
-  // totalSaidoComEnt:
-  // - Abertos: saída + complemento (ainda fora)
-  // - Fechados devolveram: saída - valor_fechamento (só a diferença ficou fora)
-  // - Fechados não devolveram: saída + complemento (tudo fora)
+  // 1. COM ENTREGADORES (abertos agora): valor_abertura + complemento - débitos
+  const totalComEnt=(entAbertos||[]).reduce((s,t)=>{
+    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
+    const debitos=debitosEntMap[t.entregador]||0;
+    return s+Math.max(0,saida-debitos);
+  },0);
+
+  // 2. PENDENTE DEVOLUÇÃO (fechados que não devolveram e não têm aberto mais recente)
+  const totalPendente=entFechadosNaoDevolveu.reduce((s,t)=>
+    s+parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0),0);
+
+  // 3. TOTAL SAÍDO DO CAIXA:
+  // - Abertos: saída + complemento (foram para entregadores)
+  // - Fechados devolveram: saída - o que voltou (diferença ficou fora)
+  // - Pendentes: valor_abertura + complemento (ainda não voltou)
   const totalSaidoAbertos=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   const totalSaidoDevolveu=entFechadosDevolveu.reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
     const voltou=parseFloat(t.valor_fechamento||0);
     return s+Math.max(0,saida-voltou);
   },0);
-  const totalSaidoNaoDevolveu=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  const totalSaidoComEnt=totalSaidoAbertos+totalSaidoDevolveu+totalSaidoNaoDevolveu;
-
-  // Com entregadores = dinheiro físico com eles agora
-  // Abertos: saída + complemento - débitos já registrados
-  const totalComEntAbertos=(entAbertos||[]).reduce((s,t)=>{
-    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
-    const debitos=debitosEntMap[t.entregador]||0;
-    return s+Math.max(0,saida-debitos);
-  },0);
-  // Fechados não devolveram: o que ficou com eles
-  const totalComEntNaoDevol=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0),0);
-  const totalComEnt=totalComEntAbertos+totalComEntNaoDevol;
+  const totalSaidoPendente=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalSaidoComEnt=totalSaidoAbertos+totalSaidoDevolveu+totalSaidoPendente;
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',periodo).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
-  const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt:null;
+  const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt+totalPendente:null;
 
   // CARDS
   document.getElementById('dash-grid').innerHTML=`
@@ -1274,22 +1278,28 @@ async function renderDashboard(){
   document.getElementById('dash-pendentes').innerHTML=pendentesHtml;
 
   const splitEl=document.getElementById('dash-split')||createSplitEl();
+  const nPendentes=entFechadosNaoDevolveu.length;
   splitEl.innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-      <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
-        <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">💰 No caixa</div>
-        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--blue);">${totalNoCaixa!=null?fmt(totalNoCaixa):'—'}</div>
-        <div style="font-size:11px;color:#1e40af;margin-top:4px;">${valorInicial!=null?'Inicial: '+fmt(valorInicial):'Configure no Fechamento'}</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+      <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+        <div style="font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">💰 No caixa</div>
+        <div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--blue);">${totalNoCaixa!=null?fmt(totalNoCaixa):'—'}</div>
+        <div style="font-size:10px;color:#1e40af;margin-top:4px;">${valorInicial!=null?'Inicial: '+fmt(valorInicial):'Configure no Fechamento'}</div>
       </div>
-      <div style="background:var(--green-bg);border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
-        <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🛵 Com entregadores</div>
-        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--green);">${fmt(totalComEnt)}</div>
-        <div style="font-size:11px;color:#166534;margin-top:4px;">${emRota} entregador${emRota!==1?'es':''} em rota</div>
+      <div style="background:var(--green-bg);border:1px solid #bbf7d0;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+        <div style="font-size:10px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🛵 Com entregadores</div>
+        <div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--green);">${fmt(totalComEnt)}</div>
+        <div style="font-size:10px;color:#166534;margin-top:4px;">${emRota} em rota</div>
       </div>
-      <div style="background:var(--amber-bg);border:1px solid #fde68a;border-radius:var(--radius-lg);padding:1.25rem;text-align:center;">
-        <div style="font-size:11px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🏦 Total geral</div>
-        <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:var(--amber);">${totalGeral!=null?fmt(totalGeral):'—'}</div>
-        <div style="font-size:11px;color:#92400e;margin-top:4px;">Caixa + entregadores</div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+        <div style="font-size:10px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">⚠️ Pendente devolução</div>
+        <div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--amber);">${fmt(totalPendente)}</div>
+        <div style="font-size:10px;color:#92400e;margin-top:4px;">${nPendentes} entregador${nPendentes!==1?'es':''}</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1rem;text-align:center;">
+        <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🏦 Total geral</div>
+        <div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;color:var(--text1);">${totalGeral!=null?fmt(totalGeral):'—'}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;">Caixa + ent. + pendente</div>
       </div>
     </div>`;
 
