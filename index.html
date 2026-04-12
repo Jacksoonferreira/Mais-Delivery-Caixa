@@ -1172,11 +1172,11 @@ async function renderDashboard(){
   const totalEnc=(entFechadosPeriodo||[]).length;
 
   // Busca TODOS os entregadores do dia (abertos e fechados hoje)
-  const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status,devolveu').eq('status','aberto');
+  const{data:entAbertos}=await sb.from('entregadores_turno').select('id,entregador,valor_abertura,complemento,status,devolveu').eq('status','aberto');
   // Fechados que não devolveram (SEM filtro de data — podem ser de dias anteriores)
-  const{data:entFechadosNaoDevDb}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
+  const{data:entFechadosNaoDevDb}=await sb.from('entregadores_turno').select('id,entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
   // Fechados de hoje que devolveram (para referência)
-  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('data',filtro).eq('status','fechado').eq('devolveu',true);
+  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('id,entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('data',periodo).eq('status','fechado').eq('devolveu',true);
   const todosEntDia=[...(entAbertos||[]),...(entFechadosNaoDevDb||[]),...(entFechadosHoje||[])];
   // Busca débitos de hoje por entregador
   const periodoAtual=filtro===todayStr()?periodStr():filtro;
