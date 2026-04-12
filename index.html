@@ -1273,7 +1273,7 @@ async function renderDashboard(){
             <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--amber);">R$ ${parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0).toFixed(2).replace('.',',')}</span>
           </div>`).join('')}
       </div>
-      <div style="margin-top:8px;font-size:12px;color:#92400e;font-weight:600;">Total pendente: R$ ${totalComEntNaoDevol.toFixed(2).replace('.',',')}</div>
+      <div style="margin-top:8px;font-size:12px;color:#92400e;font-weight:600;">Total pendente: R$ ${totalPendente.toFixed(2).replace('.',',')}</div>
     </div>`:'';
   document.getElementById('dash-pendentes').innerHTML=pendentesHtml;
 
