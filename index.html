@@ -2389,14 +2389,21 @@ async function verificarEntregadoresFora(){
 async function renderPendentesCard(){
   const el=document.getElementById('dash-pendentes');
   if(!el)return;
-  // Busca todos fechados que não devolveram
+  // Busca fechados que não devolveram
   const{data:pendentes}=await sb.from('entregadores_turno')
-    .select('entregador,valor_abertura,complemento,valor_fechamento,data,hora_fechamento')
+    .select('id,entregador,valor_abertura,complemento,valor_fechamento,data,hora_fechamento')
     .eq('status','fechado').eq('devolveu',false)
-    .order('data',{ascending:false});
-  // Dedup — mais recente por entregador
+    .order('id',{ascending:false});
+  // Busca abertos para excluir quem está em rota agora
+  const{data:emRota}=await sb.from('entregadores_turno').select('entregador,id').eq('status','aberto');
+  const maxIdAberto={};
+  (emRota||[]).forEach(t=>{if(!maxIdAberto[t.entregador]||t.id>maxIdAberto[t.entregador])maxIdAberto[t.entregador]=t.id;});
+  // Dedup — mais recente por entregador, excluindo quem tem aberto mais recente
   const map={};
-  (pendentes||[]).forEach(t=>{if(!map[t.entregador])map[t.entregador]=t;});
+  (pendentes||[]).forEach(t=>{
+    const idAberto=maxIdAberto[t.entregador]||0;
+    if(t.id>idAberto&&!map[t.entregador])map[t.entregador]=t;
+  });
   const lista=Object.values(map);
   const total=lista.reduce((s,t)=>s+parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0),0);
 
