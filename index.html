@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -222,318 +221,315 @@ tr:hover td{background:#fafaf8;}
   <nav class="nav" id="main-nav"></nav>
   <main class="main">
 
-```
-<!-- DASHBOARD -->
-<div id="sec-dashboard" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Dashboard</div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <input type="date" class="date-input" id="dash-data" onchange="renderDashboard()">
-      <button class="btn btn-sm" onclick="document.getElementById('dash-data').value=todayStr();renderDashboard()">Hoje</button>
+    <!-- DASHBOARD -->
+    <div id="sec-dashboard" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Dashboard</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="date" class="date-input" id="dash-data" onchange="renderDashboard()">
+          <button class="btn btn-sm" onclick="document.getElementById('dash-data').value=todayStr();renderDashboard()">Hoje</button>
+        </div>
+      </div>
+      <div id="dash-alerta-abertos" style="display:none;"></div>
+      <div class="dash-grid" id="dash-grid"></div>
+      <div id="dash-split" style="margin-bottom:1rem;"></div>
+      <div class="row2" style="margin-bottom:1rem;">
+        <div class="card">
+          <div class="card-title">Débitos por entregador</div>
+          <div id="chart-entregadores" style="min-height:200px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Ocorrências por tipo</div>
+          <canvas id="chart-tipos" style="max-height:260px;"></canvas>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="card-title">Evolução de débitos ao longo do dia</div>
+        <canvas id="chart-evolucao" style="max-height:220px;"></canvas>
+      </div>
+      <div class="row2">
+        <div class="card"><div class="card-title">Turnos do dia</div><div id="dash-turnos"></div></div>
+        <div class="card"><div class="card-title">Últimas ocorrências</div><div id="dash-ultimas"></div></div>
+      </div>
     </div>
-  </div>
-  <div id="dash-alerta-abertos" style="display:none;"></div>
-  <div class="dash-grid" id="dash-grid"></div>
-  <div id="dash-split" style="margin-bottom:1rem;"></div>
-  <div class="row2" style="margin-bottom:1rem;">
-    <div class="card">
-      <div class="card-title">Débitos por entregador</div>
-      <div id="chart-entregadores" style="min-height:200px;"></div>
-    </div>
-    <div class="card">
-      <div class="card-title">Ocorrências por tipo</div>
-      <canvas id="chart-tipos" style="max-height:260px;"></canvas>
-    </div>
-  </div>
-  <div class="card" style="margin-bottom:1rem;">
-    <div class="card-title">Evolução de débitos ao longo do dia</div>
-    <canvas id="chart-evolucao" style="max-height:220px;"></canvas>
-  </div>
-  <div class="row2">
-    <div class="card"><div class="card-title">Turnos do dia</div><div id="dash-turnos"></div></div>
-    <div class="card"><div class="card-title">Últimas ocorrências</div><div id="dash-ultimas"></div></div>
-  </div>
-</div>
 
-<!-- CONTROLE DE ENTREGADORES -->
-<div id="sec-ctrl-ent" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Controle de entregadores</div>
-    <span class="mono" id="ctrl-date-label" style="font-size:12px;color:var(--text3)"></span>
-  </div>
-  <div id="ctrl-bloqueio" style="display:none">
-    <div class="bloqueio-aviso">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <div>
-        <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
-        <div style="font-size:12px;color:var(--text2);">Você precisa abrir seu turno na aba "Meu turno" antes de gerenciar entregadores.</div>
+    <!-- CONTROLE DE ENTREGADORES -->
+    <div id="sec-ctrl-ent" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Controle de entregadores</div>
+        <span class="mono" id="ctrl-date-label" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+      <div id="ctrl-bloqueio" style="display:none">
+        <div class="bloqueio-aviso">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
+            <div style="font-size:12px;color:var(--text2);">Você precisa abrir seu turno na aba "Meu turno" antes de gerenciar entregadores.</div>
+          </div>
+        </div>
+      </div>
+      <div id="ctrl-content">
+        <div class="filtro-bar">
+          <input type="text" id="filtro-ent" placeholder="Buscar entregador..." oninput="filtrarEntregadores()" style="flex:1;max-width:300px;">
+          <button class="btn btn-primary btn-sm" onclick="abrirModalAdicionar()">+ Adicionar entregador ao turno</button>
+        </div>
+        <div class="ent-grid" id="ent-grid"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
       </div>
     </div>
-  </div>
-  <div id="ctrl-content">
-    <div class="filtro-bar">
-      <input type="text" id="filtro-ent" placeholder="Buscar entregador..." oninput="filtrarEntregadores()" style="flex:1;max-width:300px;">
-      <button class="btn btn-primary btn-sm" onclick="abrirModalAdicionar()">+ Adicionar entregador ao turno</button>
-    </div>
-    <div class="ent-grid" id="ent-grid"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-  </div>
-</div>
 
-<!-- LANÇAR OCORRÊNCIA -->
-<div id="sec-lancar" class="section">
-  <div id="lancar-bloqueio" style="display:none">
-    <div class="bloqueio-aviso">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <div>
-        <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
-        <div style="font-size:12px;color:var(--text2);">Abra seu turno antes de registrar ocorrências.</div>
+    <!-- LANÇAR OCORRÊNCIA -->
+    <div id="sec-lancar" class="section">
+      <div id="lancar-bloqueio" style="display:none">
+        <div class="bloqueio-aviso">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
+            <div style="font-size:12px;color:var(--text2);">Abra seu turno antes de registrar ocorrências.</div>
+          </div>
+        </div>
+      </div>
+      <div id="lancar-form">
+        <div class="card">
+          <div class="card-title">Nova ocorrência</div>
+          <div class="row2">
+            <div class="field"><label>Data</label><input type="text" id="f-data" readonly></div>
+            <div class="field"><label>Hora</label><input type="text" id="f-hora" readonly></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Registrado por</label><input type="text" id="f-operador" readonly></div>
+            <div class="field"><label>Entregador</label><select id="f-entregador"><option value="">Selecione...</option></select></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Nº do pedido</label><input type="text" id="f-pedido" placeholder="Ex: 57131175"></div>
+            <div class="field"><label>Estabelecimento</label><input type="text" id="f-estab" placeholder="Nome do restaurante"></div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>Tipo de ocorrência</label>
+              <select id="f-tipo" onchange="atualizarDica()">
+                <option value="">Selecione...</option>
+                <optgroup label="— Débita do caixa —">
+                  <option value="din-cart">Era dinheiro → passou cartão</option>
+                  <option value="moeda">Negativo por moedas</option>
+                  <option value="perdeu">Entregador perdeu</option>
+                </optgroup>
+                <optgroup label="— Envelope —">
+                  <option value="pf-din">Pedido por fora pago em dinheiro</option>
+                  <option value="pf-cart">Pedido por fora pago no cartão</option>
+                  <option value="sem-troco">Estabelecimento sem troco</option>
+                  <option value="cart-din">Era cartão → passou dinheiro</option>
+                  <option value="nao-pagou">Esqueceu de pagar estabelecimento</option>
+                </optgroup>
+                <optgroup label="— Débito do entregador (não afeta caixa) —">
+                  <option value="esq-cobrar">Esqueceu de cobrar do cliente</option>
+                  <option value="danificou">Danificou o pedido</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="field"><label>Valor (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
+          </div>
+          <div class="dica" id="f-dica"></div>
+          <div id="f-danificou-extra" style="display:none;margin-bottom:12px;">
+            <div class="row2">
+              <div class="field" style="margin:0">
+                <label>Pedido foi refeito pelo estabelecimento?</label>
+                <select id="f-refeito" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
+                  <option value="false">Não</option>
+                  <option value="true">Sim</option>
+                </select>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Cobrar do estabelecimento?</label>
+                <select id="f-cobrar-estab" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
+                  <option value="false">Não</option>
+                  <option value="true">Sim — lançar no relatório</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="field"><label>Observação (opcional)</label><input type="text" id="f-obs" placeholder="Ex: detalhe da ocorrência"></div>
+          <button class="btn btn-primary" id="btn-lancar" onclick="lancar()">Registrar ocorrência</button>
+        </div>
+        <div class="card">
+          <div class="sec-header">
+            <div class="card-title" style="margin:0">Ocorrências de hoje</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" id="busca-pedido" placeholder="🔍 Buscar por pedido..." style="padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;width:200px;" oninput="buscarPorPedido()">
+              <span class="mono" id="lista-data-label" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+          </div>
+          <div style="margin-top:1rem" id="lista-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+        </div>
       </div>
     </div>
-  </div>
-  <div id="lancar-form">
-    <div class="card">
-      <div class="card-title">Nova ocorrência</div>
-      <div class="row2">
-        <div class="field"><label>Data</label><input type="text" id="f-data" readonly></div>
-        <div class="field"><label>Hora</label><input type="text" id="f-hora" readonly></div>
+
+    <!-- MEU TURNO -->
+    <div id="sec-meu-turno" class="section">
+      <div class="sec-header"><div class="sec-title">Meu turno</div><span class="mono" id="turno-data-label" style="font-size:12px;color:var(--text3)"></span></div>
+      <div id="turno-status-wrap"></div>
+      <div id="turno-form-wrap"></div>
+    </div>
+
+    <!-- FECHAMENTO (admins) -->
+    <div id="sec-fechamento" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Fechamento do dia</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" class="date-input" id="fc-data" onchange="renderFechamento()">
+          <button class="btn btn-green btn-sm" onclick="exportarExcel()">Excel</button>
+          <button class="btn btn-blue btn-sm" onclick="exportarPDF()">PDF</button>
+        </div>
       </div>
-      <div class="row2">
-        <div class="field"><label>Registrado por</label><input type="text" id="f-operador" readonly></div>
-        <div class="field"><label>Entregador</label><select id="f-entregador"><option value="">Selecione...</option></select></div>
+      <div class="aviso">
+        <strong>Débita do caixa:</strong> Dinheiro→Cartão <span class="tag tag-deb">débita</span> Moedas <span class="tag tag-deb">débita</span> Entregador perdeu <span class="tag tag-deb">débita</span><br>
+        <strong>Envelope (não afetam caixa):</strong> Pedido fora (din.) <span class="tag tag-sep">env.</span> Estab. sem troco <span class="tag tag-sep">env.</span> Cartão→Dinheiro <span class="tag tag-sep">env.</span> Não pagou estab. <span class="tag tag-sep">env.</span><br>
+        <strong>Aba exclusiva:</strong> Pedido fora (cartão) <span class="tag tag-pf">aba própria</span>
       </div>
-      <div class="row2">
-        <div class="field"><label>Nº do pedido</label><input type="text" id="f-pedido" placeholder="Ex: 57131175"></div>
-        <div class="field"><label>Estabelecimento</label><input type="text" id="f-estab" placeholder="Nome do restaurante"></div>
+      <div class="resumo-geral">
+        <div class="resumo-header">
+          <div class="resumo-header-left"><span class="resumo-dot"></span>Resumo total do dia — caixa</div>
+        </div>
+        <div class="resumo-inputs">
+          <div class="field" style="margin:0"><label>Valor inicial total (R$)</label><input type="number" id="fc-inicial" placeholder="Ex: 3650,00" step="0.01" min="0" oninput="salvarDia()"></div>
+          <div class="field" style="margin:0"><label>Valor final total (R$)</label><input type="number" id="fc-final" placeholder="Preencher ao fechar o dia" step="0.01" min="0" oninput="salvarDia()"></div>
+        </div>
+        <div class="resumo-linhas" id="resumo-total"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
       </div>
-      <div class="row2">
-        <div class="field">
-          <label>Tipo de ocorrência</label>
-          <select id="f-tipo" onchange="atualizarDica()">
-            <option value="">Selecione...</option>
-            <optgroup label="— Débita do caixa —">
-              <option value="din-cart">Era dinheiro → passou cartão</option>
-              <option value="moeda">Negativo por moedas</option>
-              <option value="perdeu">Entregador perdeu</option>
-            </optgroup>
-            <optgroup label="— Envelope —">
-              <option value="pf-din">Pedido por fora pago em dinheiro</option>
-              <option value="pf-cart">Pedido por fora pago no cartão</option>
-              <option value="sem-troco">Estabelecimento sem troco</option>
-              <option value="cart-din">Era cartão → passou dinheiro</option>
-              <option value="nao-pagou">Esqueceu de pagar estabelecimento</option>
-            </optgroup>
-            <optgroup label="— Débito do entregador (não afeta caixa) —">
-              <option value="esq-cobrar">Esqueceu de cobrar do cliente</option>
-              <option value="danificou">Danificou o pedido</option>
-            </optgroup>
+      <div id="split-caixa-ent" style="margin-bottom:1rem;"></div>
+      <div class="admin-only">
+        <div class="admin-only-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Envelope — não afeta o caixa
+        </div>
+        <div class="admin-only-body">
+          <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Valores para controle — <strong>fazem parte do envelope</strong>:</p>
+          <div class="admin-grid-4" id="admin-metrics"></div>
+          <div class="admin-total-row" id="admin-total-row"></div>
+        </div>
+      </div>
+      <div class="sec-divider">Resumo dos entregadores do dia</div>
+      <div id="fc-ent-turno"></div>
+      <div class="sec-divider">Contador de ocorrências por entregador</div>
+      <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
+      <div class="sec-divider">Detalhamento por turno / operador</div>
+      <div id="fc-turnos"></div>
+      <div class="sec-divider">Todas as ocorrências do dia</div>
+      <div id="fc-ocorrencias"></div>
+    </div>
+
+    <!-- PEDIDOS POR FORA CARTÃO -->
+    <div id="sec-pf-cart" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Pedidos por fora — Cartão</div>
+        <input type="date" class="date-input" id="pfc-data" onchange="renderPfCart()">
+      </div>
+      <div class="pf-cart-section">
+        <div class="pf-cart-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+          Total acumulado — Pedidos por fora pagos no cartão
+        </div>
+        <div class="pf-cart-body"><div id="pfc-total-box"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
+      </div>
+      <div class="sec-divider">Detalhamento</div>
+      <div id="pfc-lista"></div>
+    </div>
+
+    <!-- CADASTRO ENTREGADORES -->
+    <div id="sec-entregadores" class="section">
+      <div class="sec-header"><div class="sec-title">Cadastro de entregadores</div></div>
+      <div class="card">
+        <div class="card-title">Adicionar entregador</div>
+        <div class="row2">
+          <div class="field"><label>Nome</label><input type="text" id="cad-nome" placeholder="Nome completo em maiúsculas"></div>
+          <div class="field" style="display:flex;align-items:flex-end;"><button class="btn btn-primary" style="width:100%" onclick="adicionarEntregador()">Adicionar</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Entregadores cadastrados</div>
+        <div id="lista-entregadores"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+      </div>
+    </div>
+
+
+    <!-- HISTÓRICO POR ENTREGADOR -->
+    <div id="sec-historico" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Histórico por entregador</div>
+      </div>
+      <div class="card">
+        <div class="row2">
+          <div class="field">
+            <label>Entregador</label>
+            <select id="hist-entregador" onchange="renderHistorico()"><option value="">Selecione...</option></select>
+          </div>
+          <div class="row2" style="gap:8px;">
+            <div class="field"><label>De</label><input type="date" id="hist-de" onchange="renderHistorico()"></div>
+            <div class="field"><label>Até</label><input type="date" id="hist-ate" onchange="renderHistorico()"></div>
+          </div>
+        </div>
+      </div>
+      <div id="hist-resumo"></div>
+      <div id="hist-lista"></div>
+    </div>
+
+    <!-- REPASSE DE ESTABELECIMENTOS -->
+    <div id="sec-repasse" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Repasse de estabelecimentos</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="date" class="date-input" id="rep-de" onchange="renderRepasse()">
+          <span style="font-size:12px;color:var(--text2)">até</span>
+          <input type="date" class="date-input" id="rep-ate" onchange="renderRepasse()">
+        </div>
+      </div>
+      <div class="aviso">Consolida registros de <strong>Não pagou estabelecimento</strong> e <strong>Estabelecimento sem troco</strong> por estabelecimento para facilitar o desconto no repasse semanal.</div>
+      <div id="rep-resumo"></div>
+      <div id="rep-lista"></div>
+    </div>
+
+    <!-- RELATÓRIO SEMANAL/MENSAL -->
+    <div id="sec-relatorio" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Relatório</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select class="date-input" id="rel-periodo" onchange="renderRelatorio()">
+            <option value="7">Últimos 7 dias</option>
+            <option value="15">Últimos 15 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="custom">Período personalizado</option>
+          </select>
+          <div id="rel-custom" style="display:none;gap:8px;align-items:center;">
+            <input type="date" class="date-input" id="rel-de">
+            <span style="font-size:12px;color:var(--text2)">até</span>
+            <input type="date" class="date-input" id="rel-ate">
+            <button class="btn btn-sm btn-primary" onclick="renderRelatorio()">Filtrar</button>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="exportarRelatorioExcel()">Excel</button>
+        </div>
+      </div>
+      <div id="rel-conteudo"></div>
+    </div>
+
+    <!-- LOG DE AÇÕES -->
+    <div id="sec-log" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Log de ações</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" class="date-input" id="log-data" onchange="renderLog()">
+          <select class="date-input" id="log-usuario" onchange="renderLog()" style="padding:7px 12px;">
+            <option value="">Todos os usuários</option>
+            <option>Jackson</option><option>Lucas</option><option>Luan</option>
+            <option>Amanda</option><option>Leonardo</option>
           </select>
         </div>
-        <div class="field"><label>Valor (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
       </div>
-      <div class="dica" id="f-dica"></div>
-      <div id="f-danificou-extra" style="display:none;margin-bottom:12px;">
-        <div class="row2">
-          <div class="field" style="margin:0">
-            <label>Pedido foi refeito pelo estabelecimento?</label>
-            <select id="f-refeito" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
-              <option value="false">Não</option>
-              <option value="true">Sim</option>
-            </select>
-          </div>
-          <div class="field" style="margin:0">
-            <label>Cobrar do estabelecimento?</label>
-            <select id="f-cobrar-estab" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
-              <option value="false">Não</option>
-              <option value="true">Sim — lançar no relatório</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div class="field"><label>Observação (opcional)</label><input type="text" id="f-obs" placeholder="Ex: detalhe da ocorrência"></div>
-      <button class="btn btn-primary" id="btn-lancar" onclick="lancar()">Registrar ocorrência</button>
+      <div id="log-lista"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
-    <div class="card">
-      <div class="sec-header">
-        <div class="card-title" style="margin:0">Ocorrências de hoje</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input type="text" id="busca-pedido" placeholder="🔍 Buscar por pedido..." style="padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;width:200px;" oninput="buscarPorPedido()">
-          <span class="mono" id="lista-data-label" style="font-size:12px;color:var(--text3)"></span>
-        </div>
-      </div>
-      <div style="margin-top:1rem" id="lista-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- MEU TURNO -->
-<div id="sec-meu-turno" class="section">
-  <div class="sec-header"><div class="sec-title">Meu turno</div><span class="mono" id="turno-data-label" style="font-size:12px;color:var(--text3)"></span></div>
-  <div id="turno-status-wrap"></div>
-  <div id="turno-form-wrap"></div>
-</div>
-
-<!-- FECHAMENTO (admins) -->
-<div id="sec-fechamento" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Fechamento do dia</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <input type="date" class="date-input" id="fc-data" onchange="renderFechamento()">
-      <button class="btn btn-green btn-sm" onclick="exportarExcel()">Excel</button>
-      <button class="btn btn-blue btn-sm" onclick="exportarPDF()">PDF</button>
-    </div>
-  </div>
-  <div class="aviso">
-    <strong>Débita do caixa:</strong> Dinheiro→Cartão <span class="tag tag-deb">débita</span> Moedas <span class="tag tag-deb">débita</span> Entregador perdeu <span class="tag tag-deb">débita</span><br>
-    <strong>Envelope (não afetam caixa):</strong> Pedido fora (din.) <span class="tag tag-sep">env.</span> Estab. sem troco <span class="tag tag-sep">env.</span> Cartão→Dinheiro <span class="tag tag-sep">env.</span> Não pagou estab. <span class="tag tag-sep">env.</span><br>
-    <strong>Aba exclusiva:</strong> Pedido fora (cartão) <span class="tag tag-pf">aba própria</span>
-  </div>
-  <div class="resumo-geral">
-    <div class="resumo-header">
-      <div class="resumo-header-left"><span class="resumo-dot"></span>Resumo total do dia — caixa</div>
-    </div>
-    <div class="resumo-inputs">
-      <div class="field" style="margin:0"><label>Valor inicial total (R$)</label><input type="number" id="fc-inicial" placeholder="Ex: 3650,00" step="0.01" min="0" oninput="salvarDia()"></div>
-      <div class="field" style="margin:0"><label>Valor final total (R$)</label><input type="number" id="fc-final" placeholder="Preencher ao fechar o dia" step="0.01" min="0" oninput="salvarDia()"></div>
-    </div>
-    <div class="resumo-linhas" id="resumo-total"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-  </div>
-  <div id="split-caixa-ent" style="margin-bottom:1rem;"></div>
-  <div class="admin-only">
-    <div class="admin-only-header">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      Envelope — não afeta o caixa
-    </div>
-    <div class="admin-only-body">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Valores para controle — <strong>fazem parte do envelope</strong>:</p>
-      <div class="admin-grid-4" id="admin-metrics"></div>
-      <div class="admin-total-row" id="admin-total-row"></div>
-    </div>
-  </div>
-  <div class="sec-divider">Resumo dos entregadores do dia</div>
-  <div id="fc-ent-turno"></div>
-  <div class="sec-divider">Contador de ocorrências por entregador</div>
-  <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
-  <div class="sec-divider">Detalhamento por turno / operador</div>
-  <div id="fc-turnos"></div>
-  <div class="sec-divider">Todas as ocorrências do dia</div>
-  <div id="fc-ocorrencias"></div>
-</div>
-
-<!-- PEDIDOS POR FORA CARTÃO -->
-<div id="sec-pf-cart" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Pedidos por fora — Cartão</div>
-    <input type="date" class="date-input" id="pfc-data" onchange="renderPfCart()">
-  </div>
-  <div class="pf-cart-section">
-    <div class="pf-cart-header">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
-      Total acumulado — Pedidos por fora pagos no cartão
-    </div>
-    <div class="pf-cart-body"><div id="pfc-total-box"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
-  </div>
-  <div class="sec-divider">Detalhamento</div>
-  <div id="pfc-lista"></div>
-</div>
-
-<!-- CADASTRO ENTREGADORES -->
-<div id="sec-entregadores" class="section">
-  <div class="sec-header"><div class="sec-title">Cadastro de entregadores</div></div>
-  <div class="card">
-    <div class="card-title">Adicionar entregador</div>
-    <div class="row2">
-      <div class="field"><label>Nome</label><input type="text" id="cad-nome" placeholder="Nome completo em maiúsculas"></div>
-      <div class="field" style="display:flex;align-items:flex-end;"><button class="btn btn-primary" style="width:100%" onclick="adicionarEntregador()">Adicionar</button></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">Entregadores cadastrados</div>
-    <div id="lista-entregadores"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-  </div>
-</div>
-
-
-<!-- HISTÓRICO POR ENTREGADOR -->
-<div id="sec-historico" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Histórico por entregador</div>
-  </div>
-  <div class="card">
-    <div class="row2">
-      <div class="field">
-        <label>Entregador</label>
-        <select id="hist-entregador" onchange="renderHistorico()"><option value="">Selecione...</option></select>
-      </div>
-      <div class="row2" style="gap:8px;">
-        <div class="field"><label>De</label><input type="date" id="hist-de" onchange="renderHistorico()"></div>
-        <div class="field"><label>Até</label><input type="date" id="hist-ate" onchange="renderHistorico()"></div>
-      </div>
-    </div>
-  </div>
-  <div id="hist-resumo"></div>
-  <div id="hist-lista"></div>
-</div>
-
-<!-- REPASSE DE ESTABELECIMENTOS -->
-<div id="sec-repasse" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Repasse de estabelecimentos</div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <input type="date" class="date-input" id="rep-de" onchange="renderRepasse()">
-      <span style="font-size:12px;color:var(--text2)">até</span>
-      <input type="date" class="date-input" id="rep-ate" onchange="renderRepasse()">
-    </div>
-  </div>
-  <div class="aviso">Consolida registros de <strong>Não pagou estabelecimento</strong> e <strong>Estabelecimento sem troco</strong> por estabelecimento para facilitar o desconto no repasse semanal.</div>
-  <div id="rep-resumo"></div>
-  <div id="rep-lista"></div>
-</div>
-
-<!-- RELATÓRIO SEMANAL/MENSAL -->
-<div id="sec-relatorio" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Relatório</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <select class="date-input" id="rel-periodo" onchange="renderRelatorio()">
-        <option value="7">Últimos 7 dias</option>
-        <option value="15">Últimos 15 dias</option>
-        <option value="30" selected>Últimos 30 dias</option>
-        <option value="custom">Período personalizado</option>
-      </select>
-      <div id="rel-custom" style="display:none;gap:8px;align-items:center;">
-        <input type="date" class="date-input" id="rel-de">
-        <span style="font-size:12px;color:var(--text2)">até</span>
-        <input type="date" class="date-input" id="rel-ate">
-        <button class="btn btn-sm btn-primary" onclick="renderRelatorio()">Filtrar</button>
-      </div>
-      <button class="btn btn-green btn-sm" onclick="exportarRelatorioExcel()">Excel</button>
-    </div>
-  </div>
-  <div id="rel-conteudo"></div>
-</div>
-
-<!-- LOG DE AÇÕES -->
-<div id="sec-log" class="section">
-  <div class="sec-header">
-    <div class="sec-title">Log de ações</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <input type="date" class="date-input" id="log-data" onchange="renderLog()">
-      <select class="date-input" id="log-usuario" onchange="renderLog()" style="padding:7px 12px;">
-        <option value="">Todos os usuários</option>
-        <option>Jackson</option><option>Lucas</option><option>Luan</option>
-        <option>Amanda</option><option>Leonardo</option>
-      </select>
-    </div>
-  </div>
-  <div id="log-lista"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-</div>
-```
 
   </main>
 </div>
 
 <!-- SEÇÃO DESCONTOS -->
-
 <div id="sec-descontos" class="section" style="max-width:960px;margin:0 auto;padding:1.5rem;">
   <div class="sec-header">
     <div class="sec-title">Descontos de entregadores</div>
@@ -555,7 +551,6 @@ tr:hover td{background:#fafaf8;}
 </div>
 
 <!-- MODAL ABRIR ENTREGADOR -->
-
 <div class="modal-overlay" id="modal-abrir-ent">
   <div class="modal">
     <div class="modal-title">Abrir caixa — Entregador</div>
@@ -576,7 +571,6 @@ tr:hover td{background:#fafaf8;}
 </div>
 
 <!-- MODAL FECHAR ENTREGADOR -->
-
 <div class="modal-overlay" id="modal-fechar-ent">
   <div class="modal">
     <div class="modal-title" id="modal-fechar-titulo">Encerrar turno</div>
@@ -809,15 +803,19 @@ async function renderCtrlEnt(){
   // Busca todos abertos (sem filtro de data — persiste entre dias) + fechados de hoje
   // order by id desc para pegar o mais recente quando há duplicatas
   const{data:abertos}=await sb.from('entregadores_turno').select('*').eq('status','aberto').order('id',{ascending:false});
-  // Fechados que não devolveram (qualquer data) — precisam aparecer até devolver
+  // Fechados que não devolveram (qualquer data) — só o mais recente por entregador
   const{data:fechadosPendentes}=await sb.from('entregadores_turno').select('*').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
+  // Deduplicar — manter apenas o registro mais recente por entregador
+  const fechPendMap={};
+  (fechadosPendentes||[]).forEach(t=>{if(!fechPendMap[t.entregador])fechPendMap[t.entregador]=t;});
+  const fechadosPendentesUnicos=Object.values(fechPendMap);
   // Fechados de hoje que devolveram — para mostrar o status do dia
   const{data:fechadosHoje}=await sb.from('entregadores_turno').select('*').eq('data',todayStr()).eq('status','fechado').order('id',{ascending:false});
   entregadoresList=ents||[];
   const turnosMap={};
   (abertos||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   // Pendentes de devolução de qualquer dia
-  (fechadosPendentes||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
+  fechadosPendentesUnicos.forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   // Fechados de hoje (para mostrar os que já devolveram hoje)
   (fechadosHoje||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   if(!entregadoresList.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
@@ -1149,10 +1147,17 @@ async function renderDashboard(){
   });
   // Fechados que NÃO devolveram continuam contando como "com entregadores"
   const nomesAbertos=new Set((entAbertos||[]).map(t=>t.entregador));
+  // Para fechados: pegar apenas o registro mais recente por entregador (maior id)
+  const fechadosMapHoje={};
+  (entFechadosHoje||[]).forEach(t=>{
+    if(!fechadosMapHoje[t.entregador]||t.id>fechadosMapHoje[t.entregador].id)
+      fechadosMapHoje[t.entregador]=t;
+  });
+  const fechadosUnicosHoje=Object.values(fechadosMapHoje);
   // Fechados que não devolveram (sem duplicar com abertos)
-  const entFechadosNaoDevolveu=(entFechadosHoje||[]).filter(t=>t.devolveu===false&&!nomesAbertos.has(t.entregador));
-  // Fechados que devolveram (sem duplicar com abertos) — o valor que voltou entra no caixa
-  const entFechadosDevolveu=(entFechadosHoje||[]).filter(t=>t.devolveu!==false&&!nomesAbertos.has(t.entregador));
+  const entFechadosNaoDevolveu=fechadosUnicosHoje.filter(t=>t.devolveu===false&&!nomesAbertos.has(t.entregador));
+  // Fechados que devolveram (sem duplicar com abertos)
+  const entFechadosDevolveu=fechadosUnicosHoje.filter(t=>t.devolveu!==false&&!nomesAbertos.has(t.entregador));
 
   // Total saído do caixa:
   // - Abertos: saída + complemento (ainda fora)
@@ -1555,8 +1560,14 @@ async function renderResumoTotal(){
   const debitosEntRes={};
   lista.filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{debitosEntRes[o.entregador]=(debitosEntRes[o.entregador]||0)+parseFloat(o.valor);});
   const nomesAbertosRes=new Set((entAbertosRes||[]).map(t=>t.entregador));
-  const entFechadosNaoDevRes=(entFechadosRes||[]).filter(t=>t.devolveu===false&&!nomesAbertosRes.has(t.entregador));
-  const entFechadosDevRes=(entFechadosRes||[]).filter(t=>t.devolveu!==false&&!nomesAbertosRes.has(t.entregador));
+  const fechadosMapRes={};
+  (entFechadosRes||[]).forEach(t=>{
+    if(!fechadosMapRes[t.entregador]||t.id>fechadosMapRes[t.entregador].id)
+      fechadosMapRes[t.entregador]=t;
+  });
+  const fechadosUnicosRes=Object.values(fechadosMapRes);
+  const entFechadosNaoDevRes=fechadosUnicosRes.filter(t=>t.devolveu===false&&!nomesAbertosRes.has(t.entregador));
+  const entFechadosDevRes=fechadosUnicosRes.filter(t=>t.devolveu!==false&&!nomesAbertosRes.has(t.entregador));
   const totalSaidoAbRes=(entAbertosRes||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   const totalSaidoDevRes=entFechadosDevRes.reduce((s,t)=>{
     const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
@@ -2286,6 +2297,5 @@ if('serviceWorker' in navigator){
   });
 }
 </script>
-
 </body>
 </html>
