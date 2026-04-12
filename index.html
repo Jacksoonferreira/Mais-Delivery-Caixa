@@ -231,6 +231,7 @@ tr:hover td{background:#fafaf8;}
         </div>
       </div>
       <div id="dash-alerta-abertos" style="display:none;"></div>
+      <div id="dash-alerta-fora" style="display:none;"></div>
       <div id="dash-pendentes"></div>
       <div class="dash-grid" id="dash-grid"></div>
       <div id="dash-split" style="margin-bottom:1rem;"></div>
@@ -257,6 +258,7 @@ tr:hover td{background:#fafaf8;}
     <!-- CONTROLE DE ENTREGADORES -->
     <div id="sec-ctrl-ent" class="section">
       <div class="sec-header">
+      <div id="ent-alerta-fora"></div>
         <div class="sec-title">Controle de entregadores</div>
         <span class="mono" id="ctrl-date-label" style="font-size:12px;color:var(--text3)"></span>
       </div>
@@ -831,6 +833,7 @@ async function renderCtrlEnt(){
   (fechadosHoje||[]).forEach(t=>{if(!turnosMap[t.entregador])turnosMap[t.entregador]=t;});
   if(!entregadoresList.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
   renderEntGrid(turnosMap);
+  verificarEntregadoresFora();
 }
 
 function renderEntGrid(turnosMap){
@@ -1326,8 +1329,9 @@ async function renderDashboard(){
     chartEvolucao=new Chart(ctx3,{type:'line',data:{labels:horasLabels.map(h=>h+'h'),datasets:[{label:'Débito acumulado',data:horasAcc,borderColor:'#e8451e',backgroundColor:'rgba(232,69,30,0.08)',tension:0.3,fill:true,pointBackgroundColor:'#e8451e',pointRadius:4},{label:'Débito por hora',data:horasData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.05)',tension:0.3,fill:false,pointBackgroundColor:'#2563eb',pointRadius:3}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'R$'+v.toFixed(0)}}}}});
   }
 
-  // Verificar entregadores sem fechar
+  // Verificar entregadores sem fechar e fora do período
   verificarEntregadoresAbertos();
+  verificarEntregadoresFora();
 
   // TURNOS
   const dt=document.getElementById('dash-turnos');
@@ -2303,6 +2307,48 @@ async function verificarEntregadoresAbertos(){
       <div style="font-size:13px;color:var(--text2);">${abertos.map(t=>`<strong>${t.entregador}</strong> (desde ${t.hora_abertura})`).join(' · ')}</div>
     </div>
   </div>`;
+}
+
+
+// ═══════════════════════════════════════════
+// ENTREGADORES QUE PASSARAM DO PERÍODO SEM FECHAR
+// ═══════════════════════════════════════════
+async function verificarEntregadoresFora(){
+  const alertEl=document.getElementById('dash-alerta-fora');
+  if(!alertEl)return;
+  // Busca todos abertos
+  const{data:abertos}=await sb.from('entregadores_turno')
+    .select('entregador,hora_abertura,data,valor_abertura,complemento')
+    .eq('status','aberto')
+    .order('data',{ascending:true});
+  if(!abertos||!abertos.length){alertEl.style.display='none';return;}
+  const periodo=periodStr(); // data do período atual (hoje ou ontem se antes 02:00)
+  // Entregador está fora do período se a data de abertura é anterior ao período atual
+  const fora=(abertos||[]).filter(t=>t.data<periodo);
+  if(!fora.length){alertEl.style.display='none';return;}
+  const alertHtml=`
+    <div style="background:#fef2f2;border:2px solid var(--red);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <span style="font-size:24px;">🚨</span>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--red);">${fora.length} entregador${fora.length>1?'es':''} NÃO fechou o caixa no período anterior!</div>
+          <div style="font-size:12px;color:#991b1b;margin-top:2px;">Estes entregadores saíram antes das 02:00 e não devolveram o dinheiro. Cobrar ao fechar!</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
+        ${fora.map(t=>`
+          <div style="background:#fff;border:1.5px solid #fca5a5;border-radius:var(--radius);padding:10px 14px;">
+            <div style="font-weight:700;font-size:13px;color:var(--red);margin-bottom:4px;">⚠️ ${t.entregador}</div>
+            <div style="font-size:11px;color:#991b1b;">Abriu em: ${fmtDate(t.data)} às ${t.hora_abertura}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--red);margin-top:4px;">R$ ${(parseFloat(t.valor_abertura||100)+parseFloat(t.complemento||0)).toFixed(2).replace('.',',')} pendente</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  alertEl.style.display='block';
+  alertEl.innerHTML=alertHtml;
+  // Mostrar também na aba de entregadores
+  const entAlerta=document.getElementById('ent-alerta-fora');
+  if(entAlerta)entAlerta.innerHTML=alertHtml;
 }
 
 // TEMPO REAL
