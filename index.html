@@ -1137,8 +1137,11 @@ async function renderDashboard(){
 
   // Busca TODOS os entregadores do dia (abertos e fechados hoje)
   const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,status,devolveu').eq('status','aberto');
-  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('data',filtro).eq('status','fechado');
-  const todosEntDia=[...(entAbertos||[]),...(entFechadosHoje||[])];
+  // Fechados que não devolveram (SEM filtro de data — podem ser de dias anteriores)
+  const{data:entFechadosNaoDevDb}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('status','fechado').eq('devolveu',false).order('id',{ascending:false});
+  // Fechados de hoje que devolveram (para referência)
+  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('data',filtro).eq('status','fechado').eq('devolveu',true);
+  const todosEntDia=[...(entAbertos||[]),...(entFechadosNaoDevDb||[]),...(entFechadosHoje||[])];
   // Busca débitos de hoje por entregador
   const{data:ocsHoje}=await sb.from('ocorrencias').select('entregador,tipo,valor').eq('data',filtro);
   const debitosEntMap={};
@@ -1147,17 +1150,14 @@ async function renderDashboard(){
   });
   // Fechados que NÃO devolveram continuam contando como "com entregadores"
   const nomesAbertos=new Set((entAbertos||[]).map(t=>t.entregador));
-  // Para fechados: pegar apenas o registro mais recente por entregador (maior id)
-  const fechadosMapHoje={};
-  (entFechadosHoje||[]).forEach(t=>{
-    if(!fechadosMapHoje[t.entregador]||t.id>fechadosMapHoje[t.entregador].id)
-      fechadosMapHoje[t.entregador]=t;
-  });
-  const fechadosUnicosHoje=Object.values(fechadosMapHoje);
-  // Fechados que não devolveram (sem duplicar com abertos)
-  const entFechadosNaoDevolveu=fechadosUnicosHoje.filter(t=>t.devolveu===false&&!nomesAbertos.has(t.entregador));
-  // Fechados que devolveram (sem duplicar com abertos)
-  const entFechadosDevolveu=fechadosUnicosHoje.filter(t=>t.devolveu!==false&&!nomesAbertos.has(t.entregador));
+  // Fechados que não devolveram — dedup por entregador (mais recente)
+  const naoDevMap={};
+  (entFechadosNaoDevDb||[]).forEach(t=>{if(!naoDevMap[t.entregador])naoDevMap[t.entregador]=t;});
+  const entFechadosNaoDevolveu=Object.values(naoDevMap).filter(t=>!nomesAbertos.has(t.entregador));
+  // Fechados que devolveram hoje (sem duplicar com abertos)
+  const devMap={};
+  (entFechadosHoje||[]).forEach(t=>{if(!devMap[t.entregador]||t.id>devMap[t.entregador].id)devMap[t.entregador]=t;});
+  const entFechadosDevolveu=Object.values(devMap).filter(t=>!nomesAbertos.has(t.entregador));
 
   // Total saído do caixa:
   // - Abertos: saída + complemento (ainda fora)
