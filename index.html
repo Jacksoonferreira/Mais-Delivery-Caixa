@@ -1148,38 +1148,26 @@ async function renderDashboard(){
   (ocsHoje||[]).filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
     debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
   });
-  // Fechados que NÃO devolveram continuam contando como "com entregadores"
   const nomesAbertos=new Set((entAbertos||[]).map(t=>t.entregador));
-  // Fechados que não devolveram — dedup por entregador (mais recente)
+  // Dedup fechados não devolveram (mais recente por entregador, excluindo quem tem aberto)
   const naoDevMap={};
-  (entFechadosNaoDevDb||[]).forEach(t=>{if(!naoDevMap[t.entregador])naoDevMap[t.entregador]=t;});
-  const entFechadosNaoDevolveu=Object.values(naoDevMap).filter(t=>!nomesAbertos.has(t.entregador));
-  // Fechados que devolveram hoje (sem duplicar com abertos)
-  const devMap={};
-  (entFechadosHoje||[]).forEach(t=>{if(!devMap[t.entregador]||t.id>devMap[t.entregador].id)devMap[t.entregador]=t;});
-  const entFechadosDevolveu=Object.values(devMap).filter(t=>!nomesAbertos.has(t.entregador));
+  (entFechadosNaoDevDb||[]).forEach(t=>{
+    if(!nomesAbertos.has(t.entregador)&&(!naoDevMap[t.entregador]||t.id>naoDevMap[t.entregador].id))
+      naoDevMap[t.entregador]=t;
+  });
+  const entFechadosNaoDevolveu=Object.values(naoDevMap);
 
-  // Total saído do caixa:
-  // - Abertos: saída + complemento (ainda fora)
-  // - Fechados que devolveram: saída - o que voltou (diferença ficou fora)
-  // - Fechados que não devolveram: saída + complemento (tudo fora)
+  // LÓGICA SIMPLIFICADA E CORRETA:
+  // totalSaidoComEnt = tudo que saiu do caixa e ainda não voltou
+  // = (abertos × abertura+complemento) + (fechados não devolveram × abertura+complemento)
   const totalSaidoAbertos=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  const totalSaidoDevolveu=entFechadosDevolveu.reduce((s,t)=>{
-    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
-    const voltou=parseFloat(t.valor_fechamento||0);
-    return s+Math.max(0,saida-voltou); // só a diferença ficou fora
-  },0);
   const totalSaidoNaoDevolveu=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
-  const totalSaidoComEnt=totalSaidoAbertos+totalSaidoDevolveu+totalSaidoNaoDevolveu;
+  const totalSaidoComEnt=totalSaidoAbertos+totalSaidoNaoDevolveu;
 
-  // Com entregadores (visível agora):
-  // - Abertos = saída + complemento - débitos já registrados
-  const totalComEntAbertos=(entAbertos||[]).reduce((s,t)=>{
-    const saida=parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0);
-    const debitos=debitosEntMap[t.entregador]||0;
-    return s+Math.max(0,saida-debitos);
-  },0);
-  // - Fechados não devolveram = o que voltaram com eles
+  // Com entregadores = dinheiro que está fisicamente com eles agora
+  // Abertos: saída + complemento (sem descontar débitos — débito já foi ao caixa)
+  const totalComEntAbertos=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  // Fechados não devolveram: o que fecharam com eles
   const totalComEntNaoDevol=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_fechamento||t.valor_abertura||0),0);
   const totalComEnt=totalComEntAbertos+totalComEntNaoDevol;
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
