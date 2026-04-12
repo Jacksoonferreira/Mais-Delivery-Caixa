@@ -837,12 +837,19 @@ function renderEntGrid(turnosMap){
   const filtro=document.getElementById('filtro-ent').value.toLowerCase();
   const el=document.getElementById('ent-grid');
   let lista=entregadoresList.filter(e=>e.nome.toLowerCase().includes(filtro));
-  // ordenar: em rota → livre → encerrado
+  // ordenar: em rota → fechado não devolveu → livre → encerrado devolveu
   lista=lista.sort((a,b)=>{
-    const sa=turnosMap[a.nome]?.status||'livre';
-    const sb2=turnosMap[b.nome]?.status||'livre';
-    const ord={'aberto':0,'livre':1,'fechado':2};
-    return (ord[sa]||1)-(ord[sb2]||1);
+    const ta=turnosMap[a.nome],tb=turnosMap[b.nome];
+    const getPrio=t=>{
+      if(!t)return 2;
+      if(t.status==='aberto')return 0;
+      if(t.status==='fechado'&&t.devolveu===false)return 1;
+      if(t.status==='fechado')return 3;
+      return 2;
+    };
+    const pa=getPrio(ta),pb=getPrio(tb);
+    if(pa!==pb)return pa-pb;
+    return a.nome.localeCompare(b.nome);
   });
   if(!lista.length){el.innerHTML='<div class="empty">Nenhum entregador encontrado.</div>';return;}
   el.innerHTML=lista.map(e=>{
@@ -855,9 +862,13 @@ function renderEntGrid(turnosMap){
     return `<div class="ent-card ${isAberto?'aberto':''} ${isChuva?'chuva':''}">
       <div class="ent-card-header ${isAberto?'aberto':'fechado'}">
         <span class="ent-nome">${e.nome}</span>
-        <span class="badge ${isAberto?'badge-aberto':isFechado?'badge-fechado':'badge-perdeu'}" style="${!t?'background:var(--surface2);color:var(--text3)':''}">
-          ${isAberto?'Em rota':isFechado?'Encerrado':'Livre'}
-        </span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${isAberto?`<span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--green);">R$ ${(parseFloat(t.valor_abertura||100)+parseFloat(t.complemento||0)).toFixed(2).replace('.',',')}</span>`:''}
+          ${isFechado&&t.devolveu===false?`<span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:var(--amber);">R$ ${parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0).toFixed(2).replace('.',',')}⚠️</span>`:''}
+          <span class="badge ${isAberto?'badge-aberto':isFechado?'badge-fechado':'badge-perdeu'}" style="${!t?'background:var(--surface2);color:var(--text3)':''}">
+            ${isAberto?'Em rota':isFechado?'Encerrado':'Livre'}
+          </span>
+        </div>
       </div>
       <div class="ent-body">
         ${t?`<div class="ent-info-row">
@@ -1195,18 +1206,7 @@ async function renderDashboard(){
   const totalComEntAbertos=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   const totalComEntNaoDevol=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0),0);
   const totalComEnt=totalComEntAbertos+totalComEntNaoDevol;
-  console.log('SPLIT DEBUG:',{
-    abertos:(entAbertos||[]).length,
-    totalSaidoAbertos,
-    fechadosNaoDevolveu:entFechadosNaoDevolveu.length,
-    totalSaidoNaoDevolveu,
-    totalSaidoComEnt,
-    totalComEntAbertos,
-    totalComEntNaoDevol,
-    totalComEnt,
-    valorInicial
-  });
-  const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
+  const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',periodo).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
   const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt:null;
@@ -1633,7 +1633,7 @@ async function renderResumoTotal(){
 }
 
 async function renderFechamento(){
-  const filtro=document.getElementById('fc-data').value||todayStr();
+  const filtro=document.getElementById('fc-data').value||periodStr();
   await carregarDia(filtro);await renderResumoTotal();
   const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro).order('hora_abertura');
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
