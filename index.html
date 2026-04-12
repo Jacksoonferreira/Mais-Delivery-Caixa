@@ -620,6 +620,17 @@ const PF_CART='pf-cart';
 let currentUser=null,clockInterval=null,meuTurnoAtual=null,entParaFechar=null,entNomeParaFechar=null;
 const brDate=()=>new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
 const todayStr=()=>{const d=brDate();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+// Retorna a data de início do período operacional (07:00 de hoje ou ontem se antes das 02:00)
+const periodStr=()=>{
+  const d=brDate();
+  const hora=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  // Se antes das 02:00, o período ainda é do dia anterior
+  if(hora<'02:00'){
+    const ontem=new Date(d);ontem.setDate(ontem.getDate()-1);
+    return `${ontem.getFullYear()}-${String(ontem.getMonth()+1).padStart(2,'0')}-${String(ontem.getDate()).padStart(2,'0')}`;
+  }
+  return todayStr();
+};
 const nowTimeShort=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 const nowTimeFull=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const fmtDate=d=>d?d.split('-').reverse().join('/'):'—';
@@ -792,13 +803,13 @@ async function abrirAutomaticos(){
 }
 
 async function renderCtrlEnt(){
-  document.getElementById('ctrl-date-label').textContent=fmtDate(todayStr());
+  document.getElementById('ctrl-date-label').textContent=`Período: ${fmtDate(periodStr())}`;
   atualizarBloqueioCtrl();
   if(!podeAgir())return;
   const el=document.getElementById('ent-grid');
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
-  // Abre automáticos antes de renderizar
-  await abrirAutomaticos();
+  // Abertura automática desativada — todos abrem manualmente
+  // await abrirAutomaticos();
   const{data:ents}=await sb.from('entregadores').select('nome,bag,maquina_fixa,abertura_automatica').eq('ativo',true).order('nome');
   // Busca todos abertos (sem filtro de data — persiste entre dias) + fechados de hoje
   // order by id desc para pegar o mais recente quando há duplicatas
@@ -1131,9 +1142,11 @@ let chartTipos=null,chartEvolucao=null;
 async function renderDashboard(){
   const filtro=document.getElementById('dash-data').value||todayStr();
   const isHoje=filtro===todayStr();
-  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
-  const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
-  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro);
+  // Usa período operacional (07:00 hoje até 02:00 amanhã)
+  const periodo=filtro===todayStr()?periodStr():filtro;
+  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',periodo).order('created_at');
+  const{data:turnos}=await sb.from('turnos').select('*').eq('data',periodo).order('hora_abertura');
+  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',periodo);
   const lista=ocs||[];
   const totalDebita=lista.filter(o=>DEBITA.includes(o.tipo)&&o.estabelecimento!=='Fechamento de caixa').reduce((s,o)=>s+parseFloat(o.valor),0);
   const emRota=(entTurnos||[]).filter(t=>t.status==='aberto').length;
@@ -1147,17 +1160,29 @@ async function renderDashboard(){
   const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento,valor_fechamento,status,devolveu,hora_devolucao,operador_devolucao').eq('data',filtro).eq('status','fechado').eq('devolveu',true);
   const todosEntDia=[...(entAbertos||[]),...(entFechadosNaoDevDb||[]),...(entFechadosHoje||[])];
   // Busca débitos de hoje por entregador
-  const{data:ocsHoje}=await sb.from('ocorrencias').select('entregador,tipo,valor').eq('data',filtro);
+  const periodoAtual=filtro===todayStr()?periodStr():filtro;
+  const{data:ocsHoje}=await sb.from('ocorrencias').select('entregador,tipo,valor').eq('data',periodoAtual);
   const debitosEntMap={};
   (ocsHoje||[]).filter(o=>DEBITA.includes(o.tipo)).forEach(o=>{
     debitosEntMap[o.entregador]=(debitosEntMap[o.entregador]||0)+parseFloat(o.valor);
   });
   const nomesAbertos=new Set((entAbertos||[]).map(t=>t.entregador));
-  // Dedup fechados não devolveram (mais recente por entregador, excluindo quem tem aberto)
+  // Busca o id máximo por entregador nos abertos (para comparar com fechados)
+  const maxIdAbertosMap={};
+  (entAbertos||[]).forEach(t=>{
+    if(!maxIdAbertosMap[t.entregador]||t.id>maxIdAbertosMap[t.entregador])
+      maxIdAbertosMap[t.entregador]=t.id;
+  });
+  // Fechados não devolveram: apenas se o fechado for MAIS RECENTE que o aberto atual
+  // (se tem aberto mais recente, significa que já devolveu e reabriu)
   const naoDevMap={};
   (entFechadosNaoDevDb||[]).forEach(t=>{
-    if(!nomesAbertos.has(t.entregador)&&(!naoDevMap[t.entregador]||t.id>naoDevMap[t.entregador].id))
-      naoDevMap[t.entregador]=t;
+    const idAberto=maxIdAbertosMap[t.entregador]||0;
+    // Se tem aberto mais recente, ignora o fechado (já devolveu ao reabrir)
+    if(t.id>idAberto){
+      if(!naoDevMap[t.entregador]||t.id>naoDevMap[t.entregador].id)
+        naoDevMap[t.entregador]=t;
+    }
   });
   const entFechadosNaoDevolveu=Object.values(naoDevMap);
 
@@ -1170,6 +1195,17 @@ async function renderDashboard(){
   const totalComEntAbertos=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   const totalComEntNaoDevol=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_fechamento!=null?t.valor_fechamento:t.valor_abertura||0),0);
   const totalComEnt=totalComEntAbertos+totalComEntNaoDevol;
+  console.log('SPLIT DEBUG:',{
+    abertos:(entAbertos||[]).length,
+    totalSaidoAbertos,
+    fechadosNaoDevolveu:entFechadosNaoDevolveu.length,
+    totalSaidoNaoDevolveu,
+    totalSaidoComEnt,
+    totalComEntAbertos,
+    totalComEntNaoDevol,
+    totalComEnt,
+    valorInicial
+  });
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',filtro).maybeSingle();
   const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
@@ -1317,7 +1353,7 @@ const impactoHtml=t=>{if(DEBITA.includes(t))return'<span style="font-size:11px;f
 // LANÇAR
 async function lancar(){
   if(!podeAgir()){toast('Abra seu turno primeiro.','erro');return;}
-  const data=todayStr(),hora=nowTimeShort();
+  const data=periodStr(),hora=nowTimeShort();
   const ent=document.getElementById('f-entregador').value;
   const ped=document.getElementById('f-pedido').value.trim();
   const est=document.getElementById('f-estab').value.trim();
@@ -1359,8 +1395,8 @@ async function remover(id){
 }
 
 async function renderLista(){
-  const filtro=todayStr();
-  document.getElementById('lista-data-label').textContent=fmtDate(filtro);
+  const filtro=periodStr();
+  document.getElementById('lista-data-label').textContent=`Período: ${fmtDate(filtro)}`;
   const el=document.getElementById('lista-wrap');
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   const{data,error}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at',{ascending:false});
@@ -1383,11 +1419,10 @@ async function renderLista(){
 
 // MEU TURNO
 async function renderMeuTurno(){
-  const data=todayStr();
-  document.getElementById('turno-data-label').textContent=fmtDate(data);
+  const data=periodStr();
+  document.getElementById('turno-data-label').textContent=`Período: ${fmtDate(data)}`;
   const sw=document.getElementById('turno-status-wrap'),fw=document.getElementById('turno-form-wrap');
   sw.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';fw.innerHTML='';
-  // Busca turnos sem filtro de data — mostra abertos de dias anteriores + fechados de hoje
   const{data:turnosAbertos}=await sb.from('turnos').select('*').eq('operador',currentUser.nome).eq('status','aberto').order('created_at',{ascending:false});
   const{data:turnosHoje}=await sb.from('turnos').select('*').eq('data',data).eq('operador',currentUser.nome).eq('status','fechado').order('created_at',{ascending:false});
   const turnos=[...(turnosAbertos||[]),...(turnosHoje||[])];
@@ -1457,7 +1492,7 @@ async function renderMeuTurno(){
 }
 
 async function abrirTurno(){
-  const data=todayStr(),hora=nowTimeShort();
+  const data=periodStr(),hora=nowTimeShort();
   const val=parseFloat(document.getElementById('ta-valor').value)||100;
   const btn=event.target;btn.disabled=true;btn.textContent='Abrindo...';
   const{error}=await sb.from('turnos').insert({data,operador:currentUser.nome,hora_abertura:hora,valor_abertura:val,status:'aberto'});
