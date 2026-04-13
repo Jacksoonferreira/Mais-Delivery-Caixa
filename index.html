@@ -616,7 +616,7 @@ const nowTimeShort=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minut
 const nowTimeFull=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const fmtDate=d=>d?d.split('-').reverse().join('/'):'—';
 const fmt=v=>'R$ '+Math.abs(parseFloat(v)||0).toFixed(2).replace('.',',');
-const isAdmin=()=>currentUser&&currentUser.role==='admin';
+const isAdmin=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='readonly');
 const isAdminOrReadOnly=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='readonly');
 const canCad=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='operador_cad'||currentUser.role==='readonly');
 const turnoAberto=()=>meuTurnoAtual&&meuTurnoAtual.status==='aberto';
@@ -783,7 +783,7 @@ function atualizarBloqueioLancar(){
   const bloq=document.getElementById('lancar-bloqueio');
   const form=document.getElementById('lancar-form');
   if(!bloq||!form)return;
-  if(podeAgir()){bloq.style.display='none';form.style.display='block';}
+  if(podeAgir()||isReadOnly()){bloq.style.display='none';form.style.display='block';}
   else{bloq.style.display='block';form.style.display='none';}
 }
 
@@ -791,7 +791,7 @@ function atualizarBloqueioCtrl(){
   const bloq=document.getElementById('ctrl-bloqueio');
   const cont=document.getElementById('ctrl-content');
   if(!bloq||!cont)return;
-  if(podeAgir()){bloq.style.display='none';cont.style.display='block';}
+  if(podeAgir()||isReadOnly()){bloq.style.display='none';cont.style.display='block';}
   else{bloq.style.display='block';cont.style.display='none';}
 }
 
@@ -822,7 +822,7 @@ async function renderCtrlEnt(){
   const dateEl=document.getElementById('ctrl-date-label');
   if(dateEl)dateEl.textContent=`Período: ${fmtDate(periodStr())}`;
   atualizarBloqueioCtrl();
-  if(!podeAgir())return;
+  if(!podeAgir()&&!isReadOnly())return;
   const el=document.getElementById('ent-grid');
   if(!el)return;
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
@@ -2501,7 +2501,7 @@ function togglePendentesDetalhe(){
 // ═══════════════════════════════════════════
 // PAGAMENTO DOS ENTREGADORES
 // ═══════════════════════════════════════════
-const podeEditarPag=()=>(isAdmin()||currentUser?.nome==='LEONARDO')&&!isReadOnly();
+const podeEditarPag=()=>(currentUser?.role==='admin'||currentUser?.nome==='LEONARDO')&&!isReadOnly();
 
 function getSemanaAtual(){
   const d=brDate();
