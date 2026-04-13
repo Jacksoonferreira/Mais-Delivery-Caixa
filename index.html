@@ -188,6 +188,11 @@ tr:hover td{background:#fafaf8;}
 .filtro-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;}
 .filtro-bar input{padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);}
 @media(max-width:700px){.row2,.row3,.resumo-inputs,.metrics3,.metrics4,.admin-grid-4,.dash-grid{grid-template-columns:1fr;}.main{padding:1rem;}.tab{padding:10px 12px;font-size:12px;}.resumo-linhas{padding:0 1rem;}.resumo-inputs{padding:1rem;}.ent-grid{grid-template-columns:1fr;}}
+.sub-tab{padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.sub-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
+.sub-tab:hover{color:var(--text1);}
+.sub-section{display:none;}
+.sub-section.active{display:block;}
 </style>
 </head>
 <body>
@@ -256,7 +261,18 @@ tr:hover td{background:#fafaf8;}
     </div>
 
     <!-- CONTROLE DE ENTREGADORES -->
-    <div id="sec-ctrl-ent" class="section">
+    <div id="sec-ent-hub" class="section" style="padding:0;">
+  <!-- Sub-nav -->
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;gap:4px;flex-wrap:wrap;overflow-x:auto;">
+    <button class="sub-tab active" id="sub-btn-ctrl-ent" onclick="showSubTab('ctrl-ent','sub-ctrl-ent')">🛵 Controle</button>
+    <button class="sub-tab" id="sub-btn-fechamento-ent" onclick="showSubTab('fechamento-ent','sub-fechamento-ent')">📋 Fechamento</button>
+    <button class="sub-tab" id="sub-btn-entregadores" onclick="showSubTab('entregadores','sub-entregadores')">👥 Cadastro</button>
+    <button class="sub-tab" id="sub-btn-descontos" onclick="showSubTab('descontos','sub-descontos')">⚠️ Descontos</button>
+    <button class="sub-tab" id="sub-btn-pagamentos" onclick="showSubTab('pagamentos','sub-pagamentos')">💰 Pagamentos</button>
+  </div>
+  <!-- Sub-sections -->
+  <div id="sub-ctrl-ent" class="sub-section active">
+<div id="sec-ctrl-ent" class="section">
       <div class="sec-header">
       <div id="ent-alerta-fora"></div>
         <div class="sec-title">Controle de entregadores</div>
@@ -281,7 +297,16 @@ tr:hover td{background:#fafaf8;}
     </div>
 
     <!-- LANÇAR OCORRÊNCIA -->
-    <div id="sec-lancar" class="section">
+      </div>
+  <div id="sub-fechamento-ent" class="sub-section" style="max-width:960px;margin:0 auto;padding:1.5rem;">
+    <div id="fech-ent-content"></div>
+  </div>
+  <div id="sub-entregadores" class="sub-section"></div>
+  <div id="sub-descontos" class="sub-section"></div>
+  <div id="sub-pagamentos" class="sub-section"></div>
+</div>
+
+<div id="sec-lancar" class="section">
       <div id="lancar-bloqueio" style="display:none">
         <div class="bloqueio-aviso">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -772,19 +797,14 @@ function buildNav(){
     return;
   }
   h+=`<button class="tab" onclick="showTab('dashboard',this)">Dashboard</button>`;
-  h+=`<button class="tab" onclick="showTab('ctrl-ent',this)">Entregadores</button>`;
+  h+=`<button class="tab" onclick="showTab('ent-hub',this)">Entregadores</button>`;
   h+=`<button class="tab active" onclick="showTab('lancar',this)">Lançar ocorrência</button>`;
   h+=`<button class="tab" onclick="showTab('meu-turno',this)">Meu turno</button>`;
   if(isAdmin()){
     h+=`<button class="tab" onclick="showTab('fechamento',this)">Fechamento do dia</button>`;
     h+=`<button class="tab" onclick="showTab('pf-cart',this)">Pedidos fora (cartão)</button>`;
   }
-  if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Cadastro</button>`;
   h+=`<button class="tab" onclick="showTab('repasse',this)">Repasse</button>`;
-  h+=`<button class="tab" onclick="showTab('descontos',this)">Descontos</button>`;
-  if(isAdmin()||currentUser?.nome==='LEONARDO'){
-    h+=`<button class="tab" onclick="showTab('pagamentos',this)">Pagamentos</button>`;
-  }
   if(isAdmin()){
     h+=`<button class="tab" onclick="showTab('hist-caixa',this)">Hist. caixa</button>`;
     h+=`<button class="tab" onclick="showTab('historico',this)">Histórico</button>`;
@@ -845,6 +865,14 @@ function showTab(name,btn){
   const buscaEl=document.getElementById('busca-pedido');
   if(buscaEl&&name!=='lancar'){buscaEl.value='';_allOcsCache=[];}
   if(name==='dashboard')renderDashboard();
+  if(name==='ent-hub'){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    if(btn)btn.classList.add('active');
+    document.getElementById('sec-ent-hub').classList.add('active');
+    showSubTab('ctrl-ent','sub-ctrl-ent');
+    return;
+  }
   if(name==='ctrl-ent')renderCtrlEnt();
   if(name==='meu-turno')renderMeuTurno();
   if(name==='fechamento')renderFechamento();
@@ -2630,6 +2658,27 @@ function getSemanaLabel(inicio,fim,fimDisplay){
 }
 
 async function renderPagamentos(){
+  // Render into sub-pagamentos if inside hub, otherwise use sec-pagamentos
+  const subPag=document.getElementById('sub-pagamentos');
+  const inHub=subPag&&subPag.classList.contains('active');
+  if(inHub&&!subPag.querySelector('#pag-lista')){
+    subPag.innerHTML=`<div style="max-width:1100px;margin:0 auto;padding:1.5rem;">
+      <div class="sec-header">
+        <div class="sec-title">Pagamento dos entregadores</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select class="date-input" id="pag-semana" onchange="renderPagamentos()">
+            <option value="atual">Semana atual</option>
+            <option value="anterior">Semana anterior</option>
+          </select>
+          <button class="btn btn-sm" onclick="adicionarEntregadorManual()" style="background:var(--surface2);border:1px solid var(--border2);">+ Entregador manual</button>
+          <button class="btn btn-sm btn-primary" onclick="exportarPagamentosExcel()">📊 Exportar Excel</button>
+          <button class="btn btn-sm btn-green" id="btn-finalizar-todos" onclick="finalizarTodosPagamentos()" style="font-weight:700;display:none;">✓ Finalizar todos</button>
+        </div>
+      </div>
+      <div id="pag-periodo-label" style="font-size:13px;color:var(--text2);margin-bottom:1rem;"></div>
+      <div id="pag-lista"></div>
+    </div>`;
+  }
   const el=document.getElementById('pag-lista');
   const lbl=document.getElementById('pag-periodo-label');
   if(!el)return;
@@ -3257,6 +3306,110 @@ _Gerado às ${nowTimeShort()} por ${currentUser.nome}_`;
   setTimeout(()=>div.remove(),15000);
 
   toast('PDF gerado! Clique no botão verde para copiar o resumo para o WhatsApp.');
+}
+
+
+// ═══════════════════════════════════════════
+// ENTREGADORES HUB — SUB-NAVEGAÇÃO
+// ═══════════════════════════════════════════
+function showSubTab(name, subId){
+  // Mark sub-tab buttons
+  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+  const btn=document.getElementById('sub-btn-'+name);
+  if(btn)btn.classList.add('active');
+  // Show/hide sub-sections
+  document.querySelectorAll('.sub-section').forEach(s=>s.classList.remove('active'));
+  const subEl=document.getElementById(subId);
+  if(subEl)subEl.classList.add('active');
+  // Render content
+  if(name==='ctrl-ent')renderCtrlEnt();
+  if(name==='fechamento-ent')renderFechamentoEnt();
+  if(name==='entregadores'){
+    const target=document.getElementById('sub-entregadores');
+    const src=document.getElementById('sec-entregadores-orig');
+    if(target&&src)target.innerHTML=src.innerHTML;
+    renderEntregadores();
+  }
+  if(name==='descontos'){
+    document.getElementById('sub-descontos').innerHTML=
+      `<div style="max-width:960px;margin:0 auto;padding:1.5rem;" id="sub-desc-inner">
+        <div class="sec-header">
+          <div class="sec-title">Descontos de entregadores</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select class="date-input" id="desc-semana2" onchange="renderDescontosInner()">
+              <option value="atual">Semana atual</option>
+              <option value="anterior">Semana anterior</option>
+              <option value="todas">Todas pendentes</option>
+            </select>
+            <select class="date-input" id="desc-status2" onchange="renderDescontosInner()">
+              <option value="pendente">Pendentes</option>
+              <option value="descontado">Descontados</option>
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+        <div id="desc-resumo2"></div>
+        <div id="desc-lista2"></div>
+      </div>`;
+    renderDescontosInner();
+  }
+  if(name==='pagamentos')renderPagamentos();
+}
+
+async function renderDescontosInner(){
+  // Mirror renderDescontos but use desc-semana2/desc-status2 and desc-resumo2/desc-lista2
+  const semanaFiltro=document.getElementById('desc-semana2')?.value||'atual';
+  const statusFiltro=document.getElementById('desc-status2')?.value||'pendente';
+  const resumoEl=document.getElementById('desc-resumo2');
+  const listaEl=document.getElementById('desc-lista2');
+  if(!resumoEl||!listaEl)return;
+  // Reuse same logic - temporarily swap IDs
+  const origSem=document.getElementById('desc-semana');
+  const origStat=document.getElementById('desc-status');
+  const origRes=document.getElementById('desc-resumo');
+  const origLis=document.getElementById('desc-lista');
+  if(origSem)origSem.value=semanaFiltro;
+  if(origStat)origStat.value=statusFiltro;
+  await renderDescontos();
+  if(resumoEl&&origRes)resumoEl.innerHTML=origRes.innerHTML;
+  if(listaEl&&origLis)listaEl.innerHTML=origLis.innerHTML;
+}
+
+async function renderFechamentoEnt(){
+  const el=document.getElementById('fech-ent-content');
+  if(!el)return;
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  const filtro=periodStr();
+  const{data:entTurnos}=await sb.from('entregadores_turno')
+    .select('*').eq('data',filtro).order('hora_abertura');
+  const todos=entTurnos||[];
+  if(!todos.length){el.innerHTML='<div class="empty">Nenhum registro hoje.</div>';return;}
+  el.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Entregador</th><th>Bag</th><th>Máquina</th>
+      <th>Abertura</th><th>Fechamento</th><th>Saída</th>
+      <th>Compl.</th><th>Chuva</th><th>Status</th><th>Obs.</th>
+    </tr></thead>
+    <tbody>${todos.map(t=>`<tr>
+      <td style="font-weight:600;">${t.entregador}</td>
+      <td class="mono">${t.bag||'—'}</td>
+      <td class="mono">${t.maquina||'—'}</td>
+      <td class="mono">${t.hora_abertura||'—'}</td>
+      <td class="mono">${t.hora_fechamento||'—'}</td>
+      <td class="mono">${fmt(t.valor_abertura||0)}</td>
+      <td class="mono">${t.complemento&&parseFloat(t.complemento)>0?'+'+fmt(t.complemento):'—'}</td>
+      <td>${t.chuva?'🌧️ Sim':'Não'}</td>
+      <td><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em rota':'Encerrado'}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${t.obs||'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderEntHub(){
+  // Ensure ent-hub is active and show default sub-tab
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-ent-hub').classList.add('active');
+  showSubTab('ctrl-ent','sub-ctrl-ent');
 }
 
 // TEMPO REAL
