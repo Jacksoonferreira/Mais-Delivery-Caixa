@@ -754,7 +754,10 @@ function showTab(name,btn){
   if(name==='relatorio')renderRelatorio();
   if(name==='log')renderLog();
   if(name==='descontos')renderDescontos();
-  if(name==='pagamentos')renderPagamentos();
+  if(name==='pagamentos'){
+    // Inject pagamentos into sub-pagamentos first, then render
+    renderPagamentos();
+  }
   if(name==='hist-caixa')renderHistCaixa();
   if(name==='lancar')atualizarBloqueioLancar();
 }
@@ -2532,10 +2535,9 @@ function getSemanaLabel(inicio,fim,fimDisplay){
 }
 
 async function renderPagamentos(){
-  // Render into sub-pagamentos if inside hub, otherwise use sec-pagamentos
+  // Always inject into sub-pagamentos when in hub
   const subPag=document.getElementById('sub-pagamentos');
-  const inHub=subPag&&subPag.classList.contains('active');
-  if(inHub&&!subPag.querySelector('#pag-lista')){
+  if(subPag){
     subPag.innerHTML=`<div style="max-width:1100px;margin:0 auto;padding:1.5rem;">
       <div class="sec-header">
         <div class="sec-title">Pagamento dos entregadores</div>
