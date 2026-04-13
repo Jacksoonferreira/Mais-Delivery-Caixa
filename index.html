@@ -1037,11 +1037,9 @@ async function confirmarFecharEnt(){
   const hora=nowTimeShort();
   const btn=document.querySelector('#modal-fechar-ent .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='Encerrando...';}
-  // Busca pelo nome — evita problema de id desatualizado, fecha todos os abertos
   const{data:registros,error:buscarErr}=await sb.from('entregadores_turno')
     .select('id,entregador,valor_abertura,complemento')
-    .eq('entregador',entNomeParaFechar)
-    .eq('status','aberto')
+    .eq('entregador',entNomeParaFechar).eq('status','aberto')
     .order('id',{ascending:false});
   if(buscarErr||!registros||!registros.length){
     if(btn){btn.disabled=false;btn.textContent='Encerrar';}
@@ -1049,11 +1047,12 @@ async function confirmarFecharEnt(){
     fecharModal('modal-fechar-ent');renderCtrlEnt();return;
   }
   const reg=registros[0];
-  // Busca débitos já registrados para este entregador hoje
+  const periodo=periodStr();
+  // Busca débitos já registrados no período para este entregador
   const{data:debitosJaReg}=await sb.from('ocorrencias')
-    .select('valor').eq('entregador',reg.entregador).eq('data',todayStr()).in('tipo',DEBITA);
+    .select('valor').eq('entregador',reg.entregador).eq('data',periodo).in('tipo',DEBITA);
   const totalDebitosJa=(debitosJaReg||[]).reduce((s,o)=>s+parseFloat(o.valor),0);
-  // Esperado = valor de abertura - débitos já lançados (evita debitar duas vezes)
+  // Esperado = valor de abertura - débitos já lançados
   const esperado=Math.max(0,(parseFloat(reg.valor_abertura)||100)-totalDebitosJa);
   const diff=valorVolta-esperado;
   const devolveu=document.getElementById('m-devolveu').value==='true';
@@ -1061,28 +1060,37 @@ async function confirmarFecharEnt(){
   const horaDevol=devolveu?hora:null;
   const operDevol=devolveu?currentUser.nome:null;
   const{error}=await sb.from('entregadores_turno')
-    .update({hora_fechamento:hora,chuva,obs,status:'fechado',data_fechamento:todayStr(),
-      valor_fechamento:valorVolta,devolveu,
+    .update({hora_fechamento:hora,chuva,obs,status:'fechado',
+      data_fechamento:periodo,valor_fechamento:valorVolta,devolveu,
       hora_devolucao:horaDevol,operador_devolucao:operDevol})
     .in('id',ids);
   if(btn){btn.disabled=false;btn.textContent='Encerrar';}
   if(error){toast('Erro: '+error.message,'erro');return;}
-  // Abate APENAS a diferença (não o valor total)
+  // Se voltou abaixo do esperado: abate do caixa E lança débito do entregador
   if(diff<0){
     const abate=Math.abs(diff);
+    // 1. Ocorrência que debita do caixa
     await sb.from('ocorrencias').insert({
-      data:todayStr(),hora,entregador:reg.entregador,
+      data:periodo,hora,entregador:reg.entregador,
       pedido:'—',estabelecimento:'Fechamento de caixa',
       tipo:'perdeu',valor:abate,
       obs:`Diferença no fechamento — esperado ${fmt(esperado)}, voltou ${fmt(valorVolta)}`,
       registrado_por:currentUser.nome
     });
-    toast(`${reg.entregador} encerrado — diferença de R$ ${abate.toFixed(2).replace('.',',')} abatida.`);
+    // 2. Débito pessoal do entregador para desconto semanal
+    await sb.from('debitos_entregadores').insert({
+      data:periodo,entregador:reg.entregador,
+      tipo:'perdeu',valor:abate,pedido:'—',
+      estabelecimento:'Fechamento de caixa',
+      obs:`Diferença no fechamento — esperado ${fmt(esperado)}, voltou ${fmt(valorVolta)}`,
+      registrado_por:currentUser.nome,
+      status:'pendente',semana:getSemana(periodo)
+    });
+    toast(`${reg.entregador} encerrado — R$ ${abate.toFixed(2).replace('.',',')} abatido do caixa e lançado para desconto.`);
   } else {
     toast(`${reg.entregador} encerrado!`);
   }
   registrarLog(`Encerrou: ${reg.entregador} — voltou ${fmt(valorVolta)} — devolveu: ${devolveu?'sim':'não'}`);
-  fecharModal('modal-fechar-ent');renderCtrlEnt();renderLista();
   fecharModal('modal-fechar-ent');renderCtrlEnt();renderLista();
 }
 
