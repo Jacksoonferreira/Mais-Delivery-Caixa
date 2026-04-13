@@ -339,7 +339,7 @@ body.readonly .btn-amber{display:none!important;}
 
 
     <!-- HISTÓRICO POR ENTREGADOR -->
-    <div id="sec-historico" class="section">
+    <div id="sec-historico">
       <div class="sec-header">
         <div class="sec-title">Histórico por entregador</div>
       </div>
@@ -360,7 +360,7 @@ body.readonly .btn-amber{display:none!important;}
     </div>
 
     <!-- REPASSE DE ESTABELECIMENTOS -->
-    <div id="sec-repasse" class="section">
+    <div id="sec-repasse">
       <div class="sec-header">
         <div class="sec-title">Repasse de estabelecimentos</div>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -375,7 +375,7 @@ body.readonly .btn-amber{display:none!important;}
     </div>
 
     <!-- RELATÓRIO SEMANAL/MENSAL -->
-    <div id="sec-relatorio" class="section">
+    <div id="sec-relatorio">
       <div class="sec-header">
         <div class="sec-title">Relatório</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -398,7 +398,7 @@ body.readonly .btn-amber{display:none!important;}
     </div>
 
     <!-- LOG DE AÇÕES -->
-    <div id="sec-log" class="section">
+    <div id="sec-log">
       <div class="sec-header">
         <div class="sec-title">Log de ações</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -435,7 +435,7 @@ body.readonly .btn-amber{display:none!important;}
 </div>
 
 <!-- SEÇÃO PAGAMENTOS -->
-<div id="sec-pagamentos" class="section" style="max-width:1100px;margin:0 auto;padding:1.5rem;">
+<div id="sec-pagamentos" style="max-width:1100px;margin:0 auto;padding:1.5rem;">
   <div class="sec-header">
     <div class="sec-title">Pagamento dos entregadores</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -714,6 +714,14 @@ async function mostrarApp(){
   renderCtrlEnt();
   renderDashboard();
   if(isAdmin()){carregarDia(todayStr()).then(()=>renderResumoTotal());}
+  // Init: hide all sections, show only dashboard
+  ['ent-hub','lancar','meu-turno','fechamento','pf-cart','repasse',
+   'hist-caixa','historico','relatorio','log','pagamentos','descontos'].forEach(id=>{
+    const el=document.getElementById('sec-'+id);
+    if(el)el.style.display='none';
+  });
+  const dashEl=document.getElementById('sec-dashboard');
+  if(dashEl)dashEl.style.display='block';
 }
 
 async function checkOnline(){
@@ -727,11 +735,22 @@ function toast(msg,tipo='ok'){
   el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800);
 }
 
+// All section IDs for show/hide
+const ALL_SECTIONS=['dashboard','ent-hub','lancar','meu-turno','fechamento','pf-cart',
+  'repasse','hist-caixa','historico','relatorio','log','pagamentos','descontos',
+  'entregadores','historico','ctrl-ent','meu-turno'];
+
 function showTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('sec-'+name).classList.add('active');
+  // Hide all known sections by ID
+  ['dashboard','ent-hub','lancar','meu-turno','fechamento','pf-cart','repasse',
+   'hist-caixa','historico','relatorio','log','pagamentos','descontos'].forEach(id=>{
+    const el=document.getElementById('sec-'+id);
+    if(el)el.style.display='none';
+  });
+  if(btn)btn.classList.add('active');
+  const target=document.getElementById('sec-'+name);
+  if(target)target.style.display='block';
   // Limpa busca ao trocar de aba
   const buscaEl=document.getElementById('busca-pedido');
   if(buscaEl&&name!=='lancar'){buscaEl.value='';_allOcsCache=[];}
@@ -954,7 +973,7 @@ async function confirmarAbrirEnt(){
   if(error){toast('Erro: '+error.message,'erro');return;}
   registrarLog(`Abriu entregador: ${ent} — Bag: ${bag||'—'} — Máq: ${maquina||'—'}`);
   fecharModal('modal-abrir-ent');toast(`${ent} aberto!`);renderCtrlEnt();
-  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+  if(isAdmin()&&document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
 }
 
 function abrirEntregador(nome,bagCadastro,maquinaCadastro){
@@ -987,7 +1006,7 @@ async function registrarDevolucao(id, nome){
   registrarLog(`Registrou devolução de ${nome} às ${hora}`);
   toast(`Devolução de ${nome} registrada!`);
   renderCtrlEnt();
-  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+  if(isAdmin()&&document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
 }
 
 async function reabrirEntregador(id,nome){
@@ -3277,9 +3296,13 @@ async function renderFechamentoEnt(){
 }
 
 function renderEntHub(){
-  // Ensure ent-hub is active and show default sub-tab
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-ent-hub').classList.add('active');
+  ['dashboard','ent-hub','lancar','meu-turno','fechamento','pf-cart','repasse',
+   'hist-caixa','historico','relatorio','log','pagamentos','descontos'].forEach(id=>{
+    const el=document.getElementById('sec-'+id);
+    if(el)el.style.display='none';
+  });
+  const hub=document.getElementById('sec-ent-hub');
+  if(hub)hub.style.display='block';
   showSubTab('ctrl-ent','sub-ctrl-ent');
 }
 
@@ -3289,22 +3312,22 @@ sb.channel('md-rt')
     if(!currentUser)return;
     renderLista();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
-    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
-    if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
+    if(document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
+    if(isAdmin()&&document.getElementById('sec-fechamento')?.style.display!=='none')renderFechamento();
     if(isAdmin()&&document.getElementById('sec-pf-cart').classList.contains('active'))renderPfCart();
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'turnos'},()=>{
     if(!currentUser)return;
     carregarMeuTurno();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
-    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
-    if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
+    if(document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
+    if(isAdmin()&&document.getElementById('sec-fechamento')?.style.display!=='none')renderFechamento();
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'entregadores_turno'},()=>{
     if(!currentUser)return;
-    if(document.getElementById('sub-ctrl-ent')?.classList.contains('active')&&document.getElementById('sec-ent-hub')?.classList.contains('active'))renderCtrlEnt();
-    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
-    if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
+    if(document.getElementById('sec-ent-hub')?.style.display!=='none'&&document.getElementById('sub-ctrl-ent')?.classList.contains('active'))renderCtrlEnt();
+    if(document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
+    if(isAdmin()&&document.getElementById('sec-fechamento')?.style.display!=='none')renderFechamento();
   })
   .subscribe();
 
@@ -3326,7 +3349,7 @@ if('serviceWorker' in navigator){
   <div id="sub-pagamentos" class="sub-section"></div>
 </div>
 
-<div id="sec-lancar" class="section">
+<div id="sec-lancar">
       <div id="lancar-bloqueio" style="display:none">
         <div class="bloqueio-aviso">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -3413,14 +3436,14 @@ if('serviceWorker' in navigator){
     </div>
 
     <!-- MEU TURNO -->
-    <div id="sec-meu-turno" class="section">
+    <div id="sec-meu-turno">
       <div class="sec-header"><div class="sec-title">Meu turno</div><span class="mono" id="turno-data-label" style="font-size:12px;color:var(--text3)"></span></div>
       <div id="turno-status-wrap"></div>
       <div id="turno-form-wrap"></div>
     </div>
 
     <!-- FECHAMENTO (admins) -->
-    <div id="sec-fechamento" class="section">
+    <div id="sec-fechamento">
       <div class="sec-header">
         <div class="sec-title">Fechamento do dia</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -3467,7 +3490,7 @@ if('serviceWorker' in navigator){
     </div>
 
     <!-- PEDIDOS POR FORA CARTÃO -->
-    <div id="sec-pf-cart" class="section">
+    <div id="sec-pf-cart">
       <div class="sec-header">
         <div class="sec-title">Pedidos por fora — Cartão</div>
         <input type="date" class="date-input" id="pfc-data" onchange="renderPfCart()">
