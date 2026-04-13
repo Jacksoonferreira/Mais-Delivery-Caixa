@@ -542,6 +542,7 @@ tr:hover td{background:#fafaf8;}
         <option value="atual">Semana atual</option>
         <option value="anterior">Semana anterior</option>
       </select>
+      <button class="btn btn-sm" onclick="adicionarEntregadorManual()" style="background:var(--surface2);border:1px solid var(--border2);">+ Entregador manual</button>
       <button class="btn btn-sm btn-primary" onclick="exportarPagamentosExcel()">📊 Exportar Excel</button>
     </div>
   </div>
@@ -2577,14 +2578,20 @@ async function renderPagamentos(){
   const{data:extras}=await sb.from('pagamentos_extras')
     .select('*').eq('semana',semanaStr);
 
-  // Agrupa débitos por entregador
+  // Busca todos entregadores que abriram turno na semana
+  const{data:turnos}=await sb.from('entregadores_turno')
+    .select('entregador').gte('data',inicio).lte('data',fim);
+  const nomesSet=new Set();
+  (turnos||[]).forEach(t=>nomesSet.add(t.entregador));
+
+  // Agrupa tudo por entregador
   const porEnt={};
+  // Inicializa com todos que trabalharam na semana
+  nomesSet.forEach(nome=>{porEnt[nome]={debitos:[],pag:null,extras:[]};});
   (debitos||[]).forEach(d=>{
     if(!porEnt[d.entregador])porEnt[d.entregador]={debitos:[],pag:null,extras:[]};
     porEnt[d.entregador].debitos.push(d);
   });
-
-  // Vincula pagamentos e extras
   (pagamentos||[]).forEach(p=>{
     if(!porEnt[p.entregador])porEnt[p.entregador]={debitos:[],pag:null,extras:[]};
     porEnt[p.entregador].pag=p;
@@ -2595,10 +2602,6 @@ async function renderPagamentos(){
   });
 
   const ents=Object.keys(porEnt).sort();
-  if(!ents.length){
-    el.innerHTML='<div class="empty">Nenhum lançamento encontrado para esta semana.</div>';
-    return;
-  }
 
   el.innerHTML=ents.map(nome=>{
     const{debitos:debs,pag,extras:exts}=porEnt[nome];
@@ -2708,6 +2711,26 @@ function recalcularPag(nome){
   const liqEl=document.getElementById(`ent-liq-${key}`);
   if(intermEl)intermEl.textContent=`-${fmt(interm)}`;
   if(liqEl){liqEl.textContent=fmt(liq);liqEl.style.color=liq>=0?'var(--green)':'var(--red)';}
+}
+
+async function adicionarEntregadorManual(){
+  const{data:todos}=await sb.from('entregadores').select('nome').eq('ativo',true).order('nome');
+  const opcoes=(todos||[]).map(e=>e.nome);
+  // Mostra lista de entregadores para escolher
+  const nome=prompt('Nome do entregador (exatamente como cadastrado):');
+  if(!nome||!nome.trim())return;
+  const sel=document.getElementById('pag-semana').value;
+  const{inicio,fim}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
+  const semanaStr=`${fmtDate(inicio)} a ${fmtDate(fim)}`;
+  // Cria pagamento vazio para esse entregador aparecer na lista
+  const{error}=await sb.from('pagamentos_entregadores').upsert({
+    entregador:nome.trim().toUpperCase(),
+    semana:semanaStr,data_inicio:inicio,
+    valor_entregas:0,status:'pendente'
+  },{onConflict:'semana,entregador'});
+  if(error){toast('Erro: '+error.message,'erro');return;}
+  toast(`${nome.trim().toUpperCase()} adicionado!`);
+  renderPagamentos();
 }
 
 async function salvarValorEntregas(nome,semana,inicio,key){
