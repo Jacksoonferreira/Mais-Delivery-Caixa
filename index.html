@@ -326,6 +326,7 @@ tr:hover td{background:#fafaf8;}
                 <optgroup label="— Débito do entregador (não afeta caixa) —">
                   <option value="esq-cobrar">Esqueceu de cobrar do cliente</option>
                   <option value="danificou">Danificou o pedido</option>
+                  <option value="comprou">Comprou pedido</option>
                 </optgroup>
               </select>
             </div>
@@ -532,6 +533,22 @@ tr:hover td{background:#fafaf8;}
   </main>
 </div>
 
+<!-- SEÇÃO PAGAMENTOS -->
+<div id="sec-pagamentos" class="section" style="max-width:1100px;margin:0 auto;padding:1.5rem;">
+  <div class="sec-header">
+    <div class="sec-title">Pagamento dos entregadores</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select class="date-input" id="pag-semana" onchange="renderPagamentos()">
+        <option value="atual">Semana atual</option>
+        <option value="anterior">Semana anterior</option>
+      </select>
+      <button class="btn btn-sm btn-primary" onclick="exportarPagamentosExcel()">📊 Exportar Excel</button>
+    </div>
+  </div>
+  <div id="pag-periodo-label" style="font-size:13px;color:var(--text2);margin-bottom:1rem;"></div>
+  <div id="pag-lista"></div>
+</div>
+
 <!-- SEÇÃO DESCONTOS -->
 <div id="sec-descontos" class="section" style="max-width:960px;margin:0 auto;padding:1.5rem;">
   <div class="sec-header">
@@ -615,7 +632,7 @@ const USUARIOS=[
 ];
 
 const DEBITA=['din-cart','moeda','perdeu'];
-const DEBITO_ENT=['esq-cobrar','danificou','perdeu']; // débitos pessoais do entregador
+const DEBITO_ENT=['esq-cobrar','danificou','perdeu','comprou']; // débitos pessoais do entregador
 const FIXOS_AUTO=['LEONARDO MORENO','PATRIK HALLEY','LEANDRO SANTOS','HUGO','EDUARDO RODRIGUES'];
 const ENVELOPE_TIPOS=['pf-din','sem-troco','cart-din','nao-pagou'];
 const PF_CART='pf-cart';
@@ -679,6 +696,9 @@ function buildNav(){
   if(canCad()) h+=`<button class="tab" onclick="showTab('entregadores',this)">Cadastro</button>`;
   h+=`<button class="tab" onclick="showTab('repasse',this)">Repasse</button>`;
   h+=`<button class="tab" onclick="showTab('descontos',this)">Descontos</button>`;
+  if(isAdmin()||currentUser?.nome==='LEONARDO'){
+    h+=`<button class="tab" onclick="showTab('pagamentos',this)">Pagamentos</button>`;
+  }
   if(isAdmin()){
     h+=`<button class="tab" onclick="showTab('historico',this)">Histórico</button>`;
     h+=`<button class="tab" onclick="showTab('relatorio',this)">Relatório</button>`;
@@ -748,6 +768,7 @@ function showTab(name,btn){
   if(name==='relatorio')renderRelatorio();
   if(name==='log')renderLog();
   if(name==='descontos')renderDescontos();
+  if(name==='pagamentos')renderPagamentos();
   if(name==='lancar')atualizarBloqueioLancar();
 }
 
@@ -1410,7 +1431,8 @@ function atualizarDica(){
   if(extraDiv) extraDiv.style.display=t==='danificou'?'block':'none';
   const map={'din-cart':['dica-neg','Cliente marcou dinheiro e pagou no cartão — DÉBITA do caixa.'],'moeda':['dica-neg','Caixa negativo por moedas — DÉBITA do caixa.'],'perdeu':['dica-neg','Entregador perdeu dinheiro — DÉBITA do caixa.'],'pf-din':['dica-sep','Pedido por fora pago em dinheiro — registrado no envelope, não afeta o caixa.'],'pf-cart':['dica-pf','Pedido por fora pago no cartão — vai para a aba exclusiva, não afeta o caixa.'],'sem-troco':['dica-sep','Estabelecimento sem troco — registrado no envelope, não afeta o caixa.'],'cart-din':['dica-sep','Cliente marcou cartão e pagou em dinheiro — registrado no envelope, não afeta o caixa.'],'nao-pagou':['dica-sep','Não pagou o estabelecimento — registrado no envelope, não afeta o caixa.'],
     'esq-cobrar':['dica-sep','Entregador esqueceu de cobrar do cliente — não afeta o caixa, será descontado do entregador semanalmente.'],
-    'danificou':  ['dica-sep','Entregador danificou o pedido — não afeta o caixa, será descontado do entregador.']};
+    'danificou':  ['dica-sep','Entregador danificou o pedido — não afeta o caixa, será descontado do entregador.'],
+    'comprou':    ['dica-sep','Entregador comprou o pedido — não afeta o caixa, será descontado no pagamento semanal.']};
   el.className='dica';
   if(map[t]){el.classList.add(map[t][0]);el.textContent=map[t][1];el.style.display='block';}
   else el.style.display='none';
@@ -1418,10 +1440,12 @@ function atualizarDica(){
 
 const badgeHtml=t=>({'din-cart':'<span class="badge badge-dc">Dinheiro→Cartão</span>','cart-din':'<span class="badge badge-cd">Cartão→Dinheiro</span>','nao-pagou':'<span class="badge badge-np">Não pagou estab.</span>','moeda':'<span class="badge badge-mo">Moedas</span>','perdeu':'<span class="badge badge-perdeu">Entregador perdeu</span>','pf-din':'<span class="badge badge-pf-din">Pedido fora (din.)</span>','pf-cart':'<span class="badge badge-pf-cart">Pedido fora (cart.)</span>','sem-troco':'<span class="badge badge-st">Estab. sem troco</span>',
   'esq-cobrar':'<span class="badge" style="background:#fef3c7;color:#92400e">Esq. cobrar cliente</span>',
-  'danificou':  '<span class="badge" style="background:#fce7f3;color:#9d174d">Danificou pedido</span>'}[t]||t);
+  'danificou':  '<span class="badge" style="background:#fce7f3;color:#9d174d">Danificou pedido</span>',
+  'comprou':    '<span class="badge" style="background:#ede9fe;color:#5b21b6">Comprou pedido</span>'}[t]||t);
 const tipoLabel=t=>({'din-cart':'Dinheiro→Cartão','cart-din':'Cartão→Dinheiro','nao-pagou':'Não pagou estab.','moeda':'Moedas','perdeu':'Entregador perdeu','pf-din':'Pedido fora (din.)','pf-cart':'Pedido fora (cart.)','sem-troco':'Estab. sem troco',
   'esq-cobrar':'Esq. cobrar cliente',
-  'danificou':'Danificou pedido'}[t]||t);
+  'danificou':'Danificou pedido',
+  'comprou':'Comprou pedido'}[t]||t);
 const impactoHtml=t=>{if(DEBITA.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--red);">débita caixa</span>';if(t===PF_CART)return'<span style="font-size:11px;font-weight:700;color:var(--indigo);">aba cartão</span>';if(ENVELOPE_TIPOS.includes(t))return'<span style="font-size:11px;font-weight:700;color:var(--purple);">envelope</span>';return'<span style="font-size:11px;color:var(--text3);">—</span>';};
 
 // LANÇAR
@@ -2471,6 +2495,302 @@ function togglePendentesDetalhe(){
     el.style.display='none';
     if(btn)btn.innerHTML='👁 Ver detalhes';
   }
+}
+
+
+// ═══════════════════════════════════════════
+// PAGAMENTO DOS ENTREGADORES
+// ═══════════════════════════════════════════
+const podeEditarPag=()=>isAdmin()||currentUser?.nome==='LEONARDO';
+
+function getSemanaAtual(){
+  const d=brDate();
+  const dia=d.getDay(); // 0=dom, 1=seg...
+  const diff=dia===0?-6:1-dia;
+  const seg=new Date(d);seg.setDate(d.getDate()+diff);
+  const dom=new Date(seg);dom.setDate(seg.getDate()+6);
+  const fmt2=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  return{inicio:fmt2(seg),fim:fmt2(dom)};
+}
+
+function getSemanaAnterior(){
+  const{inicio}=getSemanaAtual();
+  const seg=new Date(inicio+'T12:00:00');seg.setDate(seg.getDate()-7);
+  const dom=new Date(seg);dom.setDate(seg.getDate()+6);
+  const fmt2=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  return{inicio:fmt2(seg),fim:fmt2(dom)};
+}
+
+function getSemanaLabel(inicio,fim){
+  return `${fmtDate(inicio)} a ${fmtDate(fim)}`;
+}
+
+async function renderPagamentos(){
+  const el=document.getElementById('pag-lista');
+  const lbl=document.getElementById('pag-periodo-label');
+  if(!el)return;
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+
+  const sel=document.getElementById('pag-semana').value;
+  const{inicio,fim}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
+  const semanaStr=`${fmtDate(inicio)} a ${fmtDate(fim)}`;
+  if(lbl)lbl.textContent=`Período: ${semanaStr}`;
+
+  // Busca todos os débitos da semana
+  const{data:debitos}=await sb.from('debitos_entregadores')
+    .select('*').gte('data',inicio).lte('data',fim)
+    .order('entregador').order('data');
+
+  // Busca pagamentos salvos da semana
+  const{data:pagamentos}=await sb.from('pagamentos_entregadores')
+    .select('*').gte('data_inicio',inicio).lte('data_inicio',inicio);
+
+  // Busca extras da semana
+  const{data:extras}=await sb.from('pagamentos_extras')
+    .select('*').eq('semana',semanaStr);
+
+  // Agrupa débitos por entregador
+  const porEnt={};
+  (debitos||[]).forEach(d=>{
+    if(!porEnt[d.entregador])porEnt[d.entregador]={debitos:[],pag:null,extras:[]};
+    porEnt[d.entregador].debitos.push(d);
+  });
+
+  // Vincula pagamentos e extras
+  (pagamentos||[]).forEach(p=>{
+    if(!porEnt[p.entregador])porEnt[p.entregador]={debitos:[],pag:null,extras:[]};
+    porEnt[p.entregador].pag=p;
+  });
+  (extras||[]).forEach(e=>{
+    if(!porEnt[e.entregador])porEnt[e.entregador]={debitos:[],pag:null,extras:[]};
+    porEnt[e.entregador].extras.push(e);
+  });
+
+  const ents=Object.keys(porEnt).sort();
+  if(!ents.length){
+    el.innerHTML='<div class="empty">Nenhum lançamento encontrado para esta semana.</div>';
+    return;
+  }
+
+  el.innerHTML=ents.map(nome=>{
+    const{debitos:debs,pag,extras:exts}=porEnt[nome];
+    const pago=pag?.status==='pago';
+    const valEnt=pag?.valor_entregas||0;
+    const interm=valEnt*0.15;
+    const totalDeb=debs.filter(d=>d.status!=='nao_descontar').reduce((s,d)=>s+parseFloat(d.valor),0);
+    const totalExt=(exts||[]).reduce((s,e)=>s+parseFloat(e.valor),0);
+    const liquido=valEnt-interm-totalDeb+totalExt;
+
+    return `<div class="card" style="margin-bottom:1rem;${pago?'border-left:4px solid var(--green)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-weight:700;font-size:16px;">${nome}</span>
+          ${pago?'<span class="badge badge-aberto">✓ Pago</span>':'<span class="badge badge-livre">Pendente</span>'}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${podeEditarPag()&&!pago?`<button class="btn btn-sm btn-green" onclick="finalizarPagamento('${nome.replace(/'/g,"\'")}','${semanaStr}','${inicio}')">✓ Finalizar pagamento</button>`:''}
+          ${podeEditarPag()&&pago?`<button class="btn btn-sm btn-amber" onclick="reabrirPagamento('${nome.replace(/'/g,"\'")}','${semanaStr}')">↺ Reabrir</button>`:''}
+        </div>
+      </div>
+
+      <!-- VALOR ENTREGAS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:1rem;">
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">📦 Valor entregas</div>
+          ${podeEditarPag()&&!pago
+            ?`<input type="number" id="ent-val-${nome.replace(/\s/g,'_')}" value="${valEnt||''}" placeholder="0,00" step="0.01" min="0"
+                style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-family:'DM Mono',monospace;font-size:14px;font-weight:600;"
+                oninput="recalcularPag('${nome.replace(/'/g,"\'")}')">`
+            :`<div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;">${fmt(valEnt)}</div>`}
+        </div>
+        <div style="background:#fef2f2;border-radius:var(--radius);padding:10px;">
+          <div style="font-size:11px;color:var(--red);margin-bottom:4px;">📉 Intermediação (15%)</div>
+          <div id="ent-interm-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--red);">-${fmt(interm)}</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:var(--radius);padding:10px;">
+          <div style="font-size:11px;color:var(--red);margin-bottom:4px;">⚠️ Descontos</div>
+          <div id="ent-deb-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--red);">-${fmt(totalDeb)}</div>
+        </div>
+        <div style="background:${liquido>=0?'var(--green-bg)':'#fef2f2'};border-radius:var(--radius);padding:10px;">
+          <div style="font-size:11px;color:${liquido>=0?'var(--green)':'var(--red)'};margin-bottom:4px;">💰 Total líquido</div>
+          <div id="ent-liq-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${liquido>=0?'var(--green)':'var(--red)'};">${fmt(liquido)}</div>
+        </div>
+      </div>
+
+      <!-- DESCONTOS -->
+      ${debs.length?`<div style="margin-bottom:1rem;">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Descontos automáticos</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${debs.map(d=>`
+            <div style="background:var(--surface2);border-radius:var(--radius);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                ${badgeHtml(d.tipo)}
+                ${d.pedido&&d.pedido!=='—'?`<span class="mono" style="font-size:12px;">Pedido ${d.pedido}</span>`:''}
+                ${d.estabelecimento&&d.estabelecimento!=='—'&&d.estabelecimento!=='Fechamento de caixa'?`<span style="font-size:12px;color:var(--text2);">${d.estabelecimento}</span>`:''}
+                ${d.obs?`<span style="font-size:11px;color:var(--text3);">${d.obs}</span>`:''}
+                ${d.status==='nao_descontar'?`<span style="font-size:11px;color:var(--amber);font-style:italic;">Não descontado: ${d.justificativa||''}</span>`:''}
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:'DM Mono',monospace;font-weight:700;color:${d.status==='nao_descontar'?'var(--text3)':'var(--red)'};${d.status==='nao_descontar'?'text-decoration:line-through':''};">-${fmt(d.valor)}</span>
+                ${podeEditarPag()&&!pago?`
+                  ${d.status==='nao_descontar'
+                    ?`<button class="btn btn-sm" style="font-size:11px;" onclick="reativarDesconto(${d.id},'${nome.replace(/'/g,"\'")}')">↺ Reativar</button>`
+                    :`<button class="btn btn-sm btn-amber" style="font-size:11px;" onclick="naoDescontar(${d.id},'${nome.replace(/'/g,"\'")}')">✕ Não descontar</button>`
+                  }`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`:''}
+
+      <!-- EXTRAS -->
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
+          Extras / Bônus
+          ${podeEditarPag()&&!pago?`<button class="btn btn-sm btn-green" style="margin-left:8px;font-size:11px;" onclick="adicionarExtra('${nome.replace(/'/g,"\'")}','${semanaStr}','${nome.replace(/\s/g,'_')}')">+ Adicionar</button>`:''}
+        </div>
+        <div id="extras-${nome.replace(/\s/g,'_')}">
+          ${exts.length?exts.map(e=>`
+            <div style="background:var(--green-bg);border-radius:var(--radius);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:13px;">${e.descricao}</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--green);">+${fmt(e.valor)}</span>
+                ${podeEditarPag()&&!pago?`<button class="btn btn-sm" style="font-size:11px;" onclick="removerExtra(${e.id},'${nome.replace(/\s/g,'_')}')">✕</button>`:''}
+              </div>
+            </div>`).join(''):'<div style="font-size:12px;color:var(--text3);">Nenhum bônus lançado.</div>'}
+        </div>
+      </div>
+
+      <!-- SAVE BUTTON -->
+      ${podeEditarPag()&&!pago?`
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="btn btn-primary btn-sm" onclick="salvarValorEntregas('${nome.replace(/'/g,"\'")}','${semanaStr}','${inicio}','${nome.replace(/\s/g,'_')}')">💾 Salvar valores</button>
+        </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function recalcularPag(nome){
+  const key=nome.replace(/\s/g,'_');
+  const val=parseFloat(document.getElementById(`ent-val-${key}`)?.value)||0;
+  const interm=val*0.15;
+  const debEl=document.getElementById(`ent-deb-${key}`);
+  const deb=parseFloat(debEl?.dataset?.total||0);
+  const liq=val-interm-deb;
+  const intermEl=document.getElementById(`ent-interm-${key}`);
+  const liqEl=document.getElementById(`ent-liq-${key}`);
+  if(intermEl)intermEl.textContent=`-${fmt(interm)}`;
+  if(liqEl){liqEl.textContent=fmt(liq);liqEl.style.color=liq>=0?'var(--green)':'var(--red)';}
+}
+
+async function salvarValorEntregas(nome,semana,inicio,key){
+  const val=parseFloat(document.getElementById(`ent-val-${key}`)?.value)||0;
+  await sb.from('pagamentos_entregadores').upsert({
+    entregador:nome,semana,data_inicio:inicio,
+    valor_entregas:val,status:'pendente'
+  },{onConflict:'semana,entregador'});
+  toast('Valores salvos!');
+  renderPagamentos();
+}
+
+async function finalizarPagamento(nome,semana,inicio){
+  if(!confirm(`Finalizar pagamento de ${nome}? Todos os descontos pendentes serão marcados como descontados.`))return;
+  // Marca descontos como pagos
+  const sel=document.getElementById('pag-semana').value;
+  const{inicio:ini,fim}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
+  await sb.from('debitos_entregadores')
+    .update({status:'descontado',data_desconto:todayStr()})
+    .eq('entregador',nome).eq('status','pendente')
+    .gte('data',ini).lte('data',fim);
+  // Marca pagamento como pago
+  await sb.from('pagamentos_entregadores').upsert({
+    entregador:nome,semana,data_inicio:inicio,
+    status:'pago',data_pagamento:todayStr(),pago_por:currentUser.nome
+  },{onConflict:'semana,entregador'});
+  registrarLog(`Finalizou pagamento de ${nome} — semana ${semana}`);
+  toast(`Pagamento de ${nome} finalizado!`);
+  renderPagamentos();
+}
+
+async function reabrirPagamento(nome,semana){
+  if(!confirm(`Reabrir pagamento de ${nome}?`))return;
+  await sb.from('pagamentos_entregadores')
+    .update({status:'pendente',data_pagamento:null,pago_por:null})
+    .eq('entregador',nome).eq('semana',semana);
+  toast(`Pagamento de ${nome} reaberto.`);
+  renderPagamentos();
+}
+
+async function naoDescontar(id,nome){
+  const just=prompt('Justificativa obrigatória para não descontar:');
+  if(!just||!just.trim()){toast('Justificativa obrigatória.','erro');return;}
+  await sb.from('debitos_entregadores').update({status:'nao_descontar',justificativa:just.trim()}).eq('id',id);
+  toast('Marcado como não descontar.');
+  renderPagamentos();
+}
+
+async function reativarDesconto(id,nome){
+  await sb.from('debitos_entregadores').update({status:'pendente',justificativa:null}).eq('id',id);
+  toast('Desconto reativado.');
+  renderPagamentos();
+}
+
+async function adicionarExtra(nome,semana,key){
+  const desc=prompt('Descrição do bônus (ex: Vale gasolina, Troca de óleo):');
+  if(!desc||!desc.trim())return;
+  const val=parseFloat(prompt('Valor (R$):'));
+  if(isNaN(val)||val<=0){toast('Valor inválido.','erro');return;}
+  await sb.from('pagamentos_extras').insert({entregador:nome,semana,descricao:desc.trim(),valor:val});
+  toast('Bônus adicionado!');
+  renderPagamentos();
+}
+
+async function removerExtra(id,key){
+  if(!confirm('Remover este bônus?'))return;
+  await sb.from('pagamentos_extras').delete().eq('id',id);
+  toast('Bônus removido.');
+  renderPagamentos();
+}
+
+async function exportarPagamentosExcel(){
+  const sel=document.getElementById('pag-semana').value;
+  const{inicio,fim}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
+  const semanaStr=`${fmtDate(inicio)} a ${fmtDate(fim)}`;
+
+  const{data:debitos}=await sb.from('debitos_entregadores').select('*').gte('data',inicio).lte('data',fim).order('entregador');
+  const{data:pagamentos}=await sb.from('pagamentos_entregadores').select('*').gte('data_inicio',inicio).lte('data_inicio',inicio);
+  const{data:extras}=await sb.from('pagamentos_extras').select('*').eq('semana',semanaStr);
+
+  const porEnt={};
+  (debitos||[]).forEach(d=>{if(!porEnt[d.entregador])porEnt[d.entregador]={debitos:[],pag:null,extras:[]};porEnt[d.entregador].debitos.push(d);});
+  (pagamentos||[]).forEach(p=>{if(!porEnt[p.entregador])porEnt[p.entregador]={debitos:[],pag:null,extras:[]};porEnt[p.entregador].pag=p;});
+  (extras||[]).forEach(e=>{if(!porEnt[e.entregador])porEnt[e.entregador]={debitos:[],pag:null,extras:[]};porEnt[e.entregador].extras.push(e);});
+
+  const wb=XLSX.utils.book_new();
+  const rows=[['Entregador','Valor Entregas','Intermediação (15%)','Descontos','Extras','Total Líquido','Status','Semana']];
+
+  Object.keys(porEnt).sort().forEach(nome=>{
+    const{debitos:debs,pag,extras:exts}=porEnt[nome];
+    const valEnt=parseFloat(pag?.valor_entregas||0);
+    const interm=valEnt*0.15;
+    const totalDeb=debs.filter(d=>d.status!=='nao_descontar').reduce((s,d)=>s+parseFloat(d.valor),0);
+    const totalExt=(exts||[]).reduce((s,e)=>s+parseFloat(e.valor),0);
+    const liq=valEnt-interm-totalDeb+totalExt;
+    rows.push([nome,valEnt,-interm,-totalDeb,totalExt,liq,pag?.status==='pago'?'Pago':'Pendente',semanaStr]);
+    // Detalhe dos descontos
+    debs.forEach(d=>{
+      rows.push(['  └ '+tipoLabel(d.tipo),`Pedido ${d.pedido||'—'}`,d.estabelecimento||'','','', -parseFloat(d.valor),d.status==='nao_descontar'?'Não descontado: '+(d.justificativa||''):'Pendente','']);
+    });
+    // Extras
+    (exts||[]).forEach(e=>{
+      rows.push(['  └ '+e.descricao,'','','','',parseFloat(e.valor),'Extra','']);
+    });
+  });
+
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:25},{wch:16},{wch:18},{wch:14},{wch:10},{wch:14},{wch:12},{wch:24}];
+  XLSX.utils.book_append_sheet(wb,ws,'Pagamentos');
+  XLSX.writeFile(wb,`pagamentos_${inicio}_${fim}.xlsx`);
+  toast('Excel exportado!');
 }
 
 // TEMPO REAL
