@@ -544,6 +544,7 @@ tr:hover td{background:#fafaf8;}
       </select>
       <button class="btn btn-sm" onclick="adicionarEntregadorManual()" style="background:var(--surface2);border:1px solid var(--border2);">+ Entregador manual</button>
       <button class="btn btn-sm btn-primary" onclick="exportarPagamentosExcel()">📊 Exportar Excel</button>
+      <button class="btn btn-sm btn-green" id="btn-finalizar-todos" onclick="finalizarTodosPagamentos()" style="font-weight:700;display:none;">✓ Finalizar todos</button>
     </div>
   </div>
   <div id="pag-periodo-label" style="font-size:13px;color:var(--text2);margin-bottom:1rem;"></div>
@@ -569,6 +570,35 @@ tr:hover td{background:#fafaf8;}
   </div>
   <div id="desc-resumo"></div>
   <div id="desc-lista"></div>
+</div>
+
+<!-- MODAL VALES -->
+<div class="modal-overlay" id="modal-vales">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-title">Adicionar vale / débito</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+      <button class="btn" onclick="selecionarVale('Adiantamento',0)"
+        style="background:#fef2f2;border:1.5px solid #fca5a5;color:var(--red);font-weight:600;padding:12px;font-size:14px;">
+        💵 Adiantamento (preencha o valor)
+      </button>
+      <button class="btn" onclick="selecionarVale('Capa de chuva',0)"
+        style="background:#fef2f2;border:1.5px solid #fca5a5;color:var(--red);font-weight:600;padding:12px;font-size:14px;">
+        🧥 Capa de chuva (preencha o valor)
+      </button>
+      <div style="border-top:1px solid var(--border);padding-top:10px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Descrição:</label>
+        <input type="text" id="vale-outros-desc" placeholder="Ex: Adiantamento, Capa de chuva..."
+          style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Valor (R$):</label>
+        <input type="number" id="vale-outros-val" placeholder="0,00" step="0.01" min="0"
+          style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Mono',monospace;">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-vales')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarVale()">Adicionar</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL EXTRAS -->
@@ -2580,6 +2610,8 @@ async function renderPagamentos(){
   // semanaStr usa fimDisplay (domingo) para identificação amigável
   const semanaStr=`${fmtDate(inicio)} a ${fimDisplay?fmtDate(fimDisplay):fmtDate(fim)}`;
   if(lbl)lbl.textContent=`Período: Seg ${fmtDate(inicio)} 06:00 → Seg ${fmtDate(fim)} 06:00`;
+  const btnTodos=document.getElementById('btn-finalizar-todos');
+  if(btnTodos)btnTodos.style.display=podeEditarPag()?'inline-flex':'none';
 
   // Busca todos os débitos da semana (inclui segunda seguinte para pegar madrugada)
   const{data:debitos}=await sb.from('debitos_entregadores')
@@ -2592,6 +2624,8 @@ async function renderPagamentos(){
 
   // Busca extras da semana
   const{data:extras}=await sb.from('pagamentos_extras')
+    .select('*').eq('semana',semanaStr);
+  const{data:vales}=await sb.from('pagamentos_vales')
     .select('*').eq('semana',semanaStr);
 
   // Busca todos entregadores que trabalharam na semana (seg 06:00 → seg seguinte 06:00)
@@ -2613,20 +2647,26 @@ async function renderPagamentos(){
     porEnt[p.entregador].pag=p;
   });
   (extras||[]).forEach(e=>{
-    if(!porEnt[e.entregador])porEnt[e.entregador]={debitos:[],pag:null,extras:[]};
+    if(!porEnt[e.entregador])porEnt[e.entregador]={debitos:[],pag:null,extras:[],vales:[]};
     porEnt[e.entregador].extras.push(e);
+  });
+  (vales||[]).forEach(v=>{
+    if(!porEnt[v.entregador])porEnt[v.entregador]={debitos:[],pag:null,extras:[],vales:[]};
+    if(!porEnt[v.entregador].vales)porEnt[v.entregador].vales=[];
+    porEnt[v.entregador].vales.push(v);
   });
 
   const ents=Object.keys(porEnt).sort();
 
   el.innerHTML=ents.map(nome=>{
-    const{debitos:debs,pag,extras:exts}=porEnt[nome];
+    const{debitos:debs,pag,extras:exts,vales:vals=[]}=porEnt[nome];
     const pago=pag?.status==='pago';
-    const valEnt=pag?.valor_entregas||0;
+    const valEnt=parseFloat(pag?.valor_entregas||0);
     const interm=valEnt*0.15;
     const totalDeb=debs.filter(d=>d.status!=='nao_descontar').reduce((s,d)=>s+parseFloat(d.valor),0);
     const totalExt=(exts||[]).reduce((s,e)=>s+parseFloat(e.valor),0);
-    const liquido=valEnt-interm-totalDeb+totalExt;
+    const totalVal=(vals||[]).reduce((s,v)=>s+parseFloat(v.valor),0);
+    const liquido=valEnt-interm-totalDeb-totalVal+totalExt;
 
     return `<div class="card" style="margin-bottom:1rem;${pago?'border-left:4px solid var(--green)':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
@@ -2641,26 +2681,30 @@ async function renderPagamentos(){
       </div>
 
       <!-- VALOR ENTREGAS -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:1rem;">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:1rem;">
         <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">📦 Valor entregas</div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:4px;">📦 Valor entregas</div>
           ${podeEditarPag()&&!pago
             ?`<input type="number" id="ent-val-${nome.replace(/\s/g,'_')}" value="${valEnt||''}" placeholder="0,00" step="0.01" min="0"
                 style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-family:'DM Mono',monospace;font-size:14px;font-weight:600;"
                 oninput="recalcularPag('${nome.replace(/'/g,"\'")}')">`
-            :`<div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;">${fmt(valEnt)}</div>`}
+            :`<div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;">${fmt(valEnt)}</div>`}
         </div>
         <div style="background:#fef2f2;border-radius:var(--radius);padding:10px;">
-          <div style="font-size:11px;color:var(--red);margin-bottom:4px;">📉 Intermediação (15%)</div>
-          <div id="ent-interm-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--red);">-${fmt(interm)}</div>
+          <div style="font-size:10px;color:var(--red);margin-bottom:4px;">📉 Intermediação (15%)</div>
+          <div id="ent-interm-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--red);">-${fmt(interm)}</div>
         </div>
         <div style="background:#fef2f2;border-radius:var(--radius);padding:10px;">
-          <div style="font-size:11px;color:var(--red);margin-bottom:4px;">⚠️ Descontos</div>
-          <div id="ent-deb-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--red);">-${fmt(totalDeb)}</div>
+          <div style="font-size:10px;color:var(--red);margin-bottom:4px;">⚠️ Descontos + Vales</div>
+          <div id="ent-deb-${nome.replace(/\s/g,'_')}" data-total="${totalDeb+totalVal}" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--red);">-${fmt(totalDeb+totalVal)}</div>
+        </div>
+        <div style="background:var(--green-bg);border-radius:var(--radius);padding:10px;">
+          <div style="font-size:10px;color:var(--green);margin-bottom:4px;">🎁 Bônus</div>
+          <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--green);">+${fmt(totalExt)}</div>
         </div>
         <div style="background:${liquido>=0?'var(--green-bg)':'#fef2f2'};border-radius:var(--radius);padding:10px;">
-          <div style="font-size:11px;color:${liquido>=0?'var(--green)':'var(--red)'};margin-bottom:4px;">💰 Total líquido</div>
-          <div id="ent-liq-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${liquido>=0?'var(--green)':'var(--red)'};">${fmt(liquido)}</div>
+          <div style="font-size:10px;color:${liquido>=0?'var(--green)':'var(--red)'};margin-bottom:4px;">💰 Total líquido</div>
+          <div id="ent-liq-${nome.replace(/\s/g,'_')}" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:${liquido>=0?'var(--green)':'var(--red)'};">${fmt(liquido)}</div>
         </div>
       </div>
 
@@ -2704,6 +2748,24 @@ async function renderPagamentos(){
                 ${podeEditarPag()&&!pago?`<button class="btn btn-sm" style="font-size:11px;" onclick="removerExtra(${e.id},'${nome.replace(/\s/g,'_')}')">✕</button>`:''}
               </div>
             </div>`).join(''):'<div style="font-size:12px;color:var(--text3);">Nenhum bônus lançado.</div>'}
+        </div>
+      </div>
+
+      <!-- VALES / DÉBITOS -->
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
+          Vales / Débitos
+          ${podeEditarPag()&&!pago?`<button class="btn btn-sm" style="margin-left:8px;font-size:11px;background:#fef2f2;border:1px solid #fca5a5;color:var(--red);" onclick="adicionarVale('${nome.replace(/'/g,"\'")}','${semanaStr}','${nome.replace(/\s/g,'_')}')">+ Adicionar vale</button>`:''}
+        </div>
+        <div id="vales-${nome.replace(/\s/g,'_')}">
+          ${(vals||[]).length?(vals||[]).map(v=>`
+            <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--radius);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:13px;">${v.descricao}</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--red);">-${fmt(v.valor)}</span>
+                ${podeEditarPag()&&!pago?`<button class="btn btn-sm" style="font-size:11px;" onclick="removerVale(${v.id},'${nome.replace(/\s/g,'_')}')">✕</button>`:''}
+              </div>
+            </div>`).join(''):'<div style="font-size:12px;color:var(--text3);">Nenhum vale lançado.</div>'}
         </div>
       </div>
 
@@ -2751,11 +2813,12 @@ async function adicionarEntregadorManual(){
 
 async function salvarValorEntregas(nome,semana,inicio,key){
   const val=parseFloat(document.getElementById(`ent-val-${key}`)?.value)||0;
-  await sb.from('pagamentos_entregadores').upsert({
+  const{error}=await sb.from('pagamentos_entregadores').upsert({
     entregador:nome,semana,data_inicio:inicio,
     valor_entregas:val,status:'pendente'
-  },{onConflict:'semana,entregador'});
-  toast('Valores salvos!');
+  },{onConflict:'entregador,semana'});
+  if(error){toast('Erro ao salvar: '+error.message,'erro');return;}
+  toast(`${nome} — valor salvo: ${fmt(val)}`);
   renderPagamentos();
 }
 
@@ -2871,6 +2934,60 @@ async function exportarPagamentosExcel(){
   XLSX.utils.book_append_sheet(wb,ws,'Pagamentos');
   XLSX.writeFile(wb,`pagamentos_${inicio}_${fim}.xlsx`);
   toast('Excel exportado!');
+}
+
+
+async function finalizarTodosPagamentos(){
+  if(!confirm('Finalizar pagamento de TODOS os entregadores pendentes desta semana?'))return;
+  const sel=document.getElementById('pag-semana').value;
+  const{inicio,fim,fimDisplay}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
+  const semanaStr=`${fmtDate(inicio)} a ${fimDisplay?fmtDate(fimDisplay):fmtDate(fim)}`;
+  // Busca todos pendentes
+  const{data:pends}=await sb.from('pagamentos_entregadores')
+    .select('entregador').eq('semana',semanaStr).eq('status','pendente');
+  if(!pends||!pends.length){toast('Nenhum pagamento pendente.','erro');return;}
+  for(const p of pends){
+    // Marca débitos como descontados
+    await sb.from('debitos_entregadores')
+      .update({status:'descontado',data_desconto:todayStr()})
+      .eq('entregador',p.entregador).eq('status','pendente')
+      .gte('data',inicio).lte('data',fim);
+    // Marca pagamento como pago
+    await sb.from('pagamentos_entregadores')
+      .update({status:'pago',data_pagamento:todayStr(),pago_por:currentUser.nome})
+      .eq('entregador',p.entregador).eq('semana',semanaStr);
+  }
+  registrarLog(`Finalizou pagamento de todos — semana ${semanaStr}`);
+  toast(`${pends.length} pagamentos finalizados!`);
+  renderPagamentos();
+}
+
+let _valeNome='',_valeSemana='';
+async function adicionarVale(nome,semana,key){
+  _valeNome=nome;_valeSemana=semana;
+  document.getElementById('vale-outros-desc').value='';
+  document.getElementById('vale-outros-val').value='';
+  document.getElementById('modal-vales').classList.add('open');
+}
+function selecionarVale(desc,val){
+  document.getElementById('vale-outros-desc').value=desc;
+  document.getElementById('vale-outros-val').value=val;
+}
+async function confirmarVale(){
+  const desc=document.getElementById('vale-outros-desc').value.trim();
+  const val=parseFloat(document.getElementById('vale-outros-val').value);
+  if(!desc){toast('Preencha a descrição.','erro');return;}
+  if(isNaN(val)||val<=0){toast('Valor inválido.','erro');return;}
+  await sb.from('pagamentos_vales').insert({entregador:_valeNome,semana:_valeSemana,descricao:desc,valor:val});
+  fecharModal('modal-vales');
+  toast('Vale adicionado!');
+  renderPagamentos();
+}
+async function removerVale(id,key){
+  if(!confirm('Remover este vale?'))return;
+  await sb.from('pagamentos_vales').delete().eq('id',id);
+  toast('Vale removido.');
+  renderPagamentos();
 }
 
 // TEMPO REAL
