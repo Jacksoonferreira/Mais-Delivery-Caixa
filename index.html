@@ -212,7 +212,7 @@ body.readonly .btn-amber{display:none!important;}
 .sub-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
 .sub-tab:hover{color:var(--text1);}
 .sub-section{display:none;}
-.sub-section.active{display:block;}
+.sub-section.active{display:block;min-height:200px;}
 </style>
 </head>
 <body>
@@ -816,10 +816,12 @@ async function abrirAutomaticos(){
 }
 
 async function renderCtrlEnt(){
-  document.getElementById('ctrl-date-label').textContent=`Período: ${fmtDate(periodStr())}`;
+  const dateEl=document.getElementById('ctrl-date-label');
+  if(dateEl)dateEl.textContent=`Período: ${fmtDate(periodStr())}`;
   atualizarBloqueioCtrl();
   if(!podeAgir())return;
   const el=document.getElementById('ent-grid');
+  if(!el)return;
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   // Abertura automática desativada — todos abrem manualmente
   // await abrirAutomaticos();
@@ -1133,6 +1135,7 @@ async function carregarEntregadoresSelect(){
 // CADASTRO
 async function renderEntregadores(){
   const el=document.getElementById('lista-entregadores');
+  if(!el)return;
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   const{data}=await sb.from('entregadores').select('*').order('nome');
   if(!data||!data.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
