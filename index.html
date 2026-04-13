@@ -1949,8 +1949,13 @@ let automaticosJaRodaram = false;
 // ═══════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════
-function getSemana(dataStr){
+function getSemana(dataStr,hora){
+  // hora pode ser string "HH:MM" — se antes das 06:00, pertence à semana anterior
   const d=new Date(dataStr+'T12:00:00');
+  if(hora){
+    const h=parseInt((hora||'').split(':')[0]);
+    if(h<6){d.setDate(d.getDate()-1);} // recua um dia se antes das 06:00
+  }
   const dia=d.getDay();
   const diff=d.getDate()-(dia===0?6:dia-1);
   const seg=new Date(d);seg.setDate(diff);
@@ -2534,24 +2539,33 @@ const podeEditarPag=()=>isAdmin()||currentUser?.nome==='LEONARDO';
 
 function getSemanaAtual(){
   const d=brDate();
+  const hora=d.getHours()*60+d.getMinutes(); // minutos desde meia-noite
   const dia=d.getDay(); // 0=dom, 1=seg...
-  const diff=dia===0?-6:1-dia;
+  // Se é segunda antes das 06:00, ainda é da semana anterior
+  const eSegCedo=dia===1&&hora<360;
+  let diff=dia===0?-6:1-dia;
+  if(eSegCedo)diff-=7; // recua mais uma semana
   const seg=new Date(d);seg.setDate(d.getDate()+diff);
+  // fim = próxima segunda - 1 dia (domingo) mas a semana vai até seg 06:00
+  // para query: inicio = seg, fim = domingo (inclusive, pois seg 06:00 ainda é "desta semana")
   const dom=new Date(seg);dom.setDate(seg.getDate()+6);
+  const proxSeg=new Date(seg);proxSeg.setDate(seg.getDate()+7);
   const fmt2=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-  return{inicio:fmt2(seg),fim:fmt2(dom)};
+  // fim inclui a segunda seguinte para pegar turnos da madrugada de segunda
+  return{inicio:fmt2(seg),fim:fmt2(proxSeg),fimDisplay:fmt2(dom)};
 }
 
 function getSemanaAnterior(){
   const{inicio}=getSemanaAtual();
   const seg=new Date(inicio+'T12:00:00');seg.setDate(seg.getDate()-7);
   const dom=new Date(seg);dom.setDate(seg.getDate()+6);
+  const proxSeg=new Date(seg);proxSeg.setDate(seg.getDate()+7);
   const fmt2=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-  return{inicio:fmt2(seg),fim:fmt2(dom)};
+  return{inicio:fmt2(seg),fim:fmt2(proxSeg),fimDisplay:fmt2(dom)};
 }
 
-function getSemanaLabel(inicio,fim){
-  return `${fmtDate(inicio)} a ${fmtDate(fim)}`;
+function getSemanaLabel(inicio,fim,fimDisplay){
+  return `${fmtDate(inicio)} a ${fimDisplay?fmtDate(fimDisplay):fmtDate(fim)}`;
 }
 
 async function renderPagamentos(){
@@ -2561,24 +2575,26 @@ async function renderPagamentos(){
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
 
   const sel=document.getElementById('pag-semana').value;
-  const{inicio,fim}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
-  const semanaStr=`${fmtDate(inicio)} a ${fmtDate(fim)}`;
-  if(lbl)lbl.textContent=`Período: ${semanaStr}`;
+  const semObj=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
+  const{inicio,fim,fimDisplay}=semObj;
+  // semanaStr usa fimDisplay (domingo) para identificação amigável
+  const semanaStr=`${fmtDate(inicio)} a ${fimDisplay?fmtDate(fimDisplay):fmtDate(fim)}`;
+  if(lbl)lbl.textContent=`Período: Seg ${fmtDate(inicio)} 06:00 → Seg ${fmtDate(fim)} 06:00`;
 
-  // Busca todos os débitos da semana
+  // Busca todos os débitos da semana (inclui segunda seguinte para pegar madrugada)
   const{data:debitos}=await sb.from('debitos_entregadores')
     .select('*').gte('data',inicio).lte('data',fim)
     .order('entregador').order('data');
 
   // Busca pagamentos salvos da semana
   const{data:pagamentos}=await sb.from('pagamentos_entregadores')
-    .select('*').gte('data_inicio',inicio).lte('data_inicio',inicio);
+    .select('*').eq('semana',semanaStr);
 
   // Busca extras da semana
   const{data:extras}=await sb.from('pagamentos_extras')
     .select('*').eq('semana',semanaStr);
 
-  // Busca todos entregadores que abriram turno na semana
+  // Busca todos entregadores que trabalharam na semana (seg 06:00 → seg seguinte 06:00)
   const{data:turnos}=await sb.from('entregadores_turno')
     .select('entregador').gte('data',inicio).lte('data',fim);
   const nomesSet=new Set();
@@ -2720,8 +2736,8 @@ async function adicionarEntregadorManual(){
   const nome=prompt('Nome do entregador (exatamente como cadastrado):');
   if(!nome||!nome.trim())return;
   const sel=document.getElementById('pag-semana').value;
-  const{inicio,fim}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
-  const semanaStr=`${fmtDate(inicio)} a ${fmtDate(fim)}`;
+  const{inicio,fim,fimDisplay}=sel==='anterior'?getSemanaAnterior():getSemanaAtual();
+  const semanaStr=`${fmtDate(inicio)} a ${fimDisplay?fmtDate(fimDisplay):fmtDate(fim)}`;
   // Cria pagamento vazio para esse entregador aparecer na lista
   const{error}=await sb.from('pagamentos_entregadores').upsert({
     entregador:nome.trim().toUpperCase(),
