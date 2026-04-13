@@ -570,6 +570,34 @@ tr:hover td{background:#fafaf8;}
   <div id="desc-lista"></div>
 </div>
 
+<!-- MODAL EXTRAS -->
+<div class="modal-overlay" id="modal-extras">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-title">Adicionar bônus / extra</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+      <button class="btn" id="extra-gasolina" onclick="selecionarExtra('Vale gasolina',20)"
+        style="background:var(--green-bg);border:1.5px solid var(--green);color:var(--green);font-weight:600;padding:12px;font-size:14px;">
+        ⛽ Vale gasolina — R$ 20,00
+      </button>
+      <button class="btn" id="extra-oleo" onclick="selecionarExtra('Troca de óleo',40)"
+        style="background:var(--blue-bg);border:1.5px solid var(--blue);color:var(--blue);font-weight:600;padding:12px;font-size:14px;">
+        🔧 Troca de óleo — R$ 40,00
+      </button>
+      <div style="border-top:1px solid var(--border);padding-top:10px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Outro bônus:</label>
+        <input type="text" id="extra-outros-desc" placeholder="Descrição..."
+          style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px;">
+        <input type="number" id="extra-outros-val" placeholder="Valor (R$)" step="0.01" min="0"
+          style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Mono',monospace;">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-extras')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarExtra()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL ABRIR ENTREGADOR -->
 <div class="modal-overlay" id="modal-abrir-ent">
   <div class="modal">
@@ -2734,12 +2762,25 @@ async function reativarDesconto(id,nome){
   renderPagamentos();
 }
 
-async function adicionarExtra(nome,semana,key){
-  const desc=prompt('Descrição do bônus (ex: Vale gasolina, Troca de óleo):');
-  if(!desc||!desc.trim())return;
-  const val=parseFloat(prompt('Valor (R$):'));
+let _extraNome='',_extraSemana='';
+function adicionarExtra(nome,semana,key){
+  _extraNome=nome;_extraSemana=semana;
+  // Reset modal
+  document.getElementById('extra-outros-desc').value='';
+  document.getElementById('extra-outros-val').value='';
+  document.getElementById('modal-extras').classList.add('open');
+}
+function selecionarExtra(desc,val){
+  document.getElementById('extra-outros-desc').value=desc;
+  document.getElementById('extra-outros-val').value=val;
+}
+async function confirmarExtra(){
+  const desc=document.getElementById('extra-outros-desc').value.trim();
+  const val=parseFloat(document.getElementById('extra-outros-val').value);
+  if(!desc){toast('Preencha a descrição.','erro');return;}
   if(isNaN(val)||val<=0){toast('Valor inválido.','erro');return;}
-  await sb.from('pagamentos_extras').insert({entregador:nome,semana,descricao:desc.trim(),valor:val});
+  await sb.from('pagamentos_extras').insert({entregador:_extraNome,semana:_extraSemana,descricao:desc,valor:val});
+  fecharModal('modal-extras');
   toast('Bônus adicionado!');
   renderPagamentos();
 }
