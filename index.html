@@ -533,6 +533,24 @@ tr:hover td{background:#fafaf8;}
   </main>
 </div>
 
+<!-- SEÇÃO HISTÓRICO DE CAIXA -->
+<div id="sec-hist-caixa" class="section" style="max-width:960px;margin:0 auto;padding:1.5rem;">
+  <div class="sec-header">
+    <div class="sec-title">Histórico de caixa</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select class="date-input" id="hc-periodo" onchange="renderHistCaixa()">
+        <option value="7">Últimos 7 dias</option>
+        <option value="15">Últimos 15 dias</option>
+        <option value="30" selected>Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+      </select>
+      <button class="btn btn-sm btn-primary" onclick="gerarResumoPDF()">📄 Resumo do dia (PDF)</button>
+    </div>
+  </div>
+  <div id="hc-resumo" style="margin-bottom:1rem;"></div>
+  <div id="hc-lista"></div>
+</div>
+
 <!-- SEÇÃO PAGAMENTOS -->
 <div id="sec-pagamentos" class="section" style="max-width:1100px;margin:0 auto;padding:1.5rem;">
   <div class="sec-header">
@@ -688,6 +706,7 @@ const USUARIOS=[
   {nome:'Luan',    senha:'Lec@305417', role:'operador'},
   {nome:'Amanda',  senha:'15902507',   role:'operador'},
   {nome:'Leonardo',senha:'Pc160923@', role:'operador_cad'},
+  {nome:'elites',  senha:'123456',    role:'readonly'},
 ];
 
 const DEBITA=['din-cart','moeda','perdeu'];
@@ -718,6 +737,7 @@ const isAdmin=()=>currentUser&&currentUser.role==='admin';
 const canCad=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='operador_cad');
 const turnoAberto=()=>meuTurnoAtual&&meuTurnoAtual.status==='aberto';
 const podeAgir=()=>isAdmin()||turnoAberto();
+const isReadOnly=()=>currentUser?.role==='readonly';
 // Expõe podeAgir para uso em innerHTML dinâmico
 Object.defineProperty(window,'podeAgirGlobal',{get:()=>podeAgir()});
 const podeDash=()=>true; // dashboard sempre visível
@@ -744,6 +764,13 @@ function logout(){
 function buildNav(){
   const nav=document.getElementById('main-nav');
   let h='';
+  // Readonly: só dashboard e histórico de caixa
+  if(isReadOnly()){
+    nav.innerHTML=`
+      <button class="tab active" onclick="showTab('dashboard',this)">Dashboard</button>
+      <button class="tab" onclick="showTab('hist-caixa',this)">Histórico de caixa</button>`;
+    return;
+  }
   h+=`<button class="tab" onclick="showTab('dashboard',this)">Dashboard</button>`;
   h+=`<button class="tab" onclick="showTab('ctrl-ent',this)">Entregadores</button>`;
   h+=`<button class="tab active" onclick="showTab('lancar',this)">Lançar ocorrência</button>`;
@@ -759,6 +786,7 @@ function buildNav(){
     h+=`<button class="tab" onclick="showTab('pagamentos',this)">Pagamentos</button>`;
   }
   if(isAdmin()){
+    h+=`<button class="tab" onclick="showTab('hist-caixa',this)">Hist. caixa</button>`;
     h+=`<button class="tab" onclick="showTab('historico',this)">Histórico</button>`;
     h+=`<button class="tab" onclick="showTab('relatorio',this)">Relatório</button>`;
     h+=`<button class="tab" onclick="showTab('log',this)">Log</button>`;
@@ -828,6 +856,7 @@ function showTab(name,btn){
   if(name==='log')renderLog();
   if(name==='descontos')renderDescontos();
   if(name==='pagamentos')renderPagamentos();
+  if(name==='hist-caixa')renderHistCaixa();
   if(name==='lancar')atualizarBloqueioLancar();
 }
 
@@ -1700,6 +1729,8 @@ function salvarDia(){
     const vi=document.getElementById('fc-inicial').value,vf=document.getElementById('fc-final').value;
     await sb.from('caixa_dia').upsert({data:filtro,valor_inicial:vi?parseFloat(vi):null,valor_final:vf?parseFloat(vf):null},{onConflict:'data'});
     renderResumoTotal();
+    // Backup automático quando valor final é preenchido
+    if(vf)backupFechamento(filtro);
   },600);
 }
 
@@ -2988,6 +3019,244 @@ async function removerVale(id,key){
   await sb.from('pagamentos_vales').delete().eq('id',id);
   toast('Vale removido.');
   renderPagamentos();
+}
+
+
+// ═══════════════════════════════════════════
+// HISTÓRICO DE CAIXA DIÁRIO
+// ═══════════════════════════════════════════
+async function renderHistCaixa(){
+  const el=document.getElementById('hc-lista');
+  const resumoEl=document.getElementById('hc-resumo');
+  if(!el)return;
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  const dias=parseInt(document.getElementById('hc-periodo').value)||30;
+  const ate=todayStr();
+  const deData=new Date(brDate());deData.setDate(deData.getDate()-dias);
+  const de=`${deData.getFullYear()}-${String(deData.getMonth()+1).padStart(2,'0')}-${String(deData.getDate()).padStart(2,'0')}`;
+
+  const{data:diasCaixa}=await sb.from('caixa_dia').select('*').gte('data',de).lte('data',ate).order('data',{ascending:false});
+  const{data:ocs}=await sb.from('ocorrencias').select('data,tipo,valor').gte('data',de).lte('data',ate);
+
+  // Agrupa débitos por dia
+  const debPorDia={};
+  (ocs||[]).forEach(o=>{
+    if(DEBITA.includes(o.tipo)){
+      debPorDia[o.data]=(debPorDia[o.data]||0)+parseFloat(o.valor);
+    }
+  });
+
+  const lista=diasCaixa||[];
+  if(!lista.length){el.innerHTML='<div class="empty">Nenhum dado encontrado.</div>';return;}
+
+  // Resumo do período
+  const diasComFechamento=lista.filter(d=>d.valor_final!=null);
+  const totalDebitos=Object.values(debPorDia).reduce((s,v)=>s+v,0);
+  const mediaDiaria=diasComFechamento.length?diasComFechamento.reduce((s,d)=>s+(parseFloat(d.valor_final||0)-parseFloat(d.valor_inicial||0)),0)/diasComFechamento.length:0;
+
+  resumoEl.innerHTML=`
+    <div class="metrics4" style="margin-bottom:1rem;">
+      <div class="metric"><div class="metric-val blue">${lista.length}</div><div class="metric-lbl">Dias registrados</div></div>
+      <div class="metric"><div class="metric-val green">${diasComFechamento.length}</div><div class="metric-lbl">Dias com fechamento</div></div>
+      <div class="metric"><div class="metric-val red">${fmt(totalDebitos)}</div><div class="metric-lbl">Total débitos período</div></div>
+      <div class="metric"><div class="metric-val ${mediaDiaria>=0?'green':'red'}">${mediaDiaria>=0?'+':''}${fmt(Math.abs(mediaDiaria))}</div><div class="metric-lbl">Variação média/dia</div></div>
+    </div>`;
+
+  el.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Data</th><th>Valor inicial</th><th>Débitos</th><th>Valor final</th><th>Diferença</th><th>Status</th>
+    </tr></thead>
+    <tbody>${lista.map(d=>{
+      const ini=d.valor_inicial!=null?parseFloat(d.valor_inicial):null;
+      const fin=d.valor_final!=null?parseFloat(d.valor_final):null;
+      const deb=debPorDia[d.data]||0;
+      const diff=fin!=null&&ini!=null?fin-ini:null;
+      const fechado=fin!=null;
+      return `<tr>
+        <td class="mono" style="font-weight:600;">${fmtDate(d.data)}</td>
+        <td class="mono">${ini!=null?fmt(ini):'—'}</td>
+        <td class="mono" style="color:var(--red);">${deb>0?'-'+fmt(deb):'R$ 0,00'}</td>
+        <td class="mono">${fin!=null?fmt(fin):'—'}</td>
+        <td class="mono" style="color:${diff==null?'var(--text3)':diff>=0?'var(--green)':'var(--red)'};">
+          ${diff!=null?(diff>=0?'+':'')+diff.toFixed(2).replace('.',','):'—'}
+        </td>
+        <td><span class="badge ${fechado?'badge-fechado':'badge-livre'}">${fechado?'Fechado':'Aberto'}</span></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ═══════════════════════════════════════════
+// BACKUP AUTOMÁTICO NO FECHAMENTO
+// ═══════════════════════════════════════════
+async function backupFechamento(filtro){
+  try{
+    const{data:dia}=await sb.from('caixa_dia').select('*').eq('data',filtro).maybeSingle();
+    const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
+    const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
+    const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro);
+
+    if(!window.XLSX){console.warn('XLSX não carregado');return;}
+    const wb=XLSX.utils.book_new();
+
+    // Aba 1: Resumo
+    const ini=dia?.valor_inicial!=null?parseFloat(dia.valor_inicial):0;
+    const fin=dia?.valor_final!=null?parseFloat(dia.valor_final):null;
+    const totalDeb=(ocs||[]).filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+    const resumo=[
+      ['FECHAMENTO DO DIA — '+fmtDate(filtro)],[''],
+      ['Valor inicial',ini],['Total débitos',-totalDeb],
+      ['Valor final',fin??'Não fechado'],['Diferença',fin!=null?fin-ini:'—'],[''],
+      ['Gerado em',new Date().toLocaleString('pt-BR')]
+    ];
+    const ws1=XLSX.utils.aoa_to_sheet(resumo);
+    ws1['!cols']=[{wch:20},{wch:15}];
+    XLSX.utils.book_append_sheet(wb,ws1,'Resumo');
+
+    // Aba 2: Ocorrências
+    const ocsRows=[['Hora','Entregador','Pedido','Estabelecimento','Tipo','Valor','Por','Obs']];
+    (ocs||[]).forEach(o=>ocsRows.push([o.hora||'',o.entregador,o.pedido,o.estabelecimento,tipoLabel(o.tipo),parseFloat(o.valor),o.registrado_por||'',o.obs||'']));
+    const ws2=XLSX.utils.aoa_to_sheet(ocsRows);
+    XLSX.utils.book_append_sheet(wb,ws2,'Ocorrências');
+
+    // Aba 3: Turnos
+    const turnosRows=[['Operador','Abertura','Fechamento','Val.Abertura','Val.Fechamento','Status']];
+    (turnos||[]).forEach(t=>turnosRows.push([t.operador,t.hora_abertura,t.hora_fechamento||'',parseFloat(t.valor_abertura||0),t.valor_fechamento!=null?parseFloat(t.valor_fechamento):'',t.status]));
+    const ws3=XLSX.utils.aoa_to_sheet(turnosRows);
+    XLSX.utils.book_append_sheet(wb,ws3,'Turnos');
+
+    XLSX.writeFile(wb,`backup_caixa_${filtro}.xlsx`);
+    toast('✅ Backup do dia salvo automaticamente!');
+  }catch(e){console.error('Backup error:',e);}
+}
+
+// ═══════════════════════════════════════════
+// RESUMO DO DIA — PDF + WHATSAPP
+// ═══════════════════════════════════════════
+async function gerarResumoPDF(){
+  const filtro=periodStr();
+  const{data:dia}=await sb.from('caixa_dia').select('*').eq('data',filtro).maybeSingle();
+  const{data:ocs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
+  const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
+  const{data:entAbertos}=await sb.from('entregadores_turno').select('entregador,valor_abertura,complemento').eq('status','aberto');
+  const{data:entFechadosHoje}=await sb.from('entregadores_turno').select('entregador,valor_fechamento,devolveu').eq('data',filtro).eq('status','fechado');
+
+  const ini=dia?.valor_inicial!=null?parseFloat(dia.valor_inicial):0;
+  const fin=dia?.valor_final!=null?parseFloat(dia.valor_final):null;
+  const totalDeb=(ocs||[]).filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalEnv=(ocs||[]).filter(o=>ENVELOPE_TIPOS.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  const totalAbertos=(entAbertos||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
+  const totalPendDev=(entFechadosHoje||[]).filter(t=>t.devolveu===false).reduce((s,t)=>s+parseFloat(t.valor_fechamento||0),0);
+
+  // Gerar PDF
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const accent=[232,69,30];
+  const dark=[30,30,30];
+
+  // Header
+  doc.setFillColor(...accent);
+  doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(18);doc.setFont('helvetica','bold');
+  doc.text('MAIS DELIVERY — RESUMO DO DIA',14,12);
+  doc.setFontSize(11);doc.setFont('helvetica','normal');
+  doc.text(`${fmtDate(filtro)} • Gerado às ${nowTimeShort()} por ${currentUser.nome}`,14,22);
+
+  doc.setTextColor(...dark);
+  let y=36;
+
+  // Caixa
+  doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('CAIXA DO DIA',14,y);y+=8;
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  const linhasCaixa=[
+    ['Valor inicial:',fmt(ini)],
+    ['Total débitos:','- '+fmt(totalDeb)],
+    ['Total envelope:',fmt(totalEnv)],
+    ['Com entregadores:',fmt(totalAbertos)],
+    ['Pendente devolução:',fmt(totalPendDev)],
+    ['Valor final:',fin!=null?fmt(fin):'Não fechado'],
+    ['Diferença:',fin!=null?(fin-ini>=0?'+':'')+fmt(fin-ini):'—'],
+  ];
+  linhasCaixa.forEach(([l,v])=>{
+    doc.text(l,14,y);doc.setFont('helvetica','bold');doc.text(v,80,y);doc.setFont('helvetica','normal');y+=7;
+  });
+  y+=4;
+
+  // Turnos
+  doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.setFillColor(245,245,245);doc.rect(14,y-5,182,8,'F');
+  doc.text('TURNOS DO DIA',14,y);y+=8;
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  (turnos||[]).forEach(t=>{
+    doc.text(`${t.operador}  |  ${t.hora_abertura}${t.hora_fechamento?' → '+t.hora_fechamento:''}  |  ${fmt(t.valor_abertura||0)} → ${t.valor_fechamento!=null?fmt(t.valor_fechamento):'aberto'}`,14,y);y+=6;
+  });
+  y+=4;
+
+  // Ocorrências
+  doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.setFillColor(245,245,245);doc.rect(14,y-5,182,8,'F');
+  doc.text('OCORRÊNCIAS DO DIA',14,y);y+=8;
+
+  if((ocs||[]).length){
+    doc.autoTable({
+      startY:y,
+      head:[['Hora','Entregador','Pedido','Tipo','Valor','Por']],
+      body:(ocs||[]).map(o=>[o.hora||'',o.entregador,o.pedido,tipoLabel(o.tipo),fmt(o.valor),o.registrado_por||'']),
+      styles:{fontSize:8},
+      headStyles:{fillColor:accent},
+      alternateRowStyles:{fillColor:[250,249,247]},
+      margin:{left:14,right:14}
+    });
+    y=doc.lastAutoTable.finalY+8;
+  }else{
+    doc.setFontSize(9);doc.setFont('helvetica','normal');
+    doc.text('Nenhuma ocorrência registrada.',14,y);y+=8;
+  }
+
+  // Entregadores em rota
+  if((entAbertos||[]).length){
+    doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('ENTREGADORES AINDA EM ROTA',14,y);y+=7;
+    doc.setFontSize(9);doc.setFont('helvetica','normal');
+    (entAbertos||[]).forEach(t=>{
+      doc.text(`• ${t.entregador}  —  ${fmt(parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0))}`,14,y);y+=5;
+    });
+  }
+
+  doc.save(`resumo_dia_${filtro}.pdf`);
+
+  // Texto para WhatsApp
+  const waTxt=`*MAIS DELIVERY — RESUMO ${fmtDate(filtro)}*
+
+`+
+    `💰 *Caixa inicial:* ${fmt(ini)}
+`+
+    `📉 *Débitos:* -${fmt(totalDeb)}
+`+
+    `🛵 *Com entregadores:* ${fmt(totalAbertos)}
+`+
+    `⚠️ *Pendente devolução:* ${fmt(totalPendDev)}
+`+
+    `📋 *Envelope:* ${fmt(totalEnv)}
+`+
+    `💵 *Caixa final:* ${fin!=null?fmt(fin):'Não fechado'}
+`+
+    `${fin!=null?`📊 *Diferença:* ${fin-ini>=0?'+':''}${fmt(fin-ini)}
+`:''}`+
+    `
+_Gerado às ${nowTimeShort()} por ${currentUser.nome}_`;
+
+  // Botão copiar WhatsApp
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;bottom:80px;right:20px;background:#25D366;color:#fff;padding:12px 20px;border-radius:24px;cursor:pointer;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+  div.innerHTML='📱 Copiar para WhatsApp';
+  div.onclick=()=>{navigator.clipboard.writeText(waTxt);toast('Copiado para a área de transferência!');div.remove();};
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(),15000);
+
+  toast('PDF gerado! Clique no botão verde para copiar o resumo para o WhatsApp.');
 }
 
 // TEMPO REAL
