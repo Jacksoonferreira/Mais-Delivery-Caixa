@@ -317,85 +317,85 @@ tr:hover td{background:#fafaf8;}
       </div>
     </div>
 
-
-    <!-- HISTÓRICO POR ENTREGADOR -->
-    <div id="sec-historico" style="display:none">
-      <div class="sec-header">
-        <div class="sec-title">Histórico por entregador</div>
-      </div>
-      <div class="card">
-        <div class="row2">
-          <div class="field">
-            <label>Entregador</label>
-            <select id="hist-entregador" onchange="renderHistorico()"><option value="">Selecione...</option></select>
-          </div>
-          <div class="row2" style="gap:8px;">
-            <div class="field"><label>De</label><input type="date" id="hist-de" onchange="renderHistorico()"></div>
-            <div class="field"><label>Até</label><input type="date" id="hist-ate" onchange="renderHistorico()"></div>
-          </div>
-        </div>
-      </div>
-      <div id="hist-resumo"></div>
-      <div id="hist-lista"></div>
-    </div>
-
-    <!-- REPASSE DE ESTABELECIMENTOS -->
-    <div id="sec-repasse" style="display:none">
-      <div class="sec-header">
-        <div class="sec-title">Repasse de estabelecimentos</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="date" class="date-input" id="rep-de" onchange="renderRepasse()">
-          <span style="font-size:12px;color:var(--text2)">até</span>
-          <input type="date" class="date-input" id="rep-ate" onchange="renderRepasse()">
-        </div>
-      </div>
-      <div class="aviso">Consolida registros de <strong>Não pagou estabelecimento</strong> e <strong>Estabelecimento sem troco</strong> por estabelecimento para facilitar o desconto no repasse semanal.</div>
-      <div id="rep-resumo"></div>
-      <div id="rep-lista"></div>
-    </div>
-
-    <!-- RELATÓRIO SEMANAL/MENSAL -->
-    <div id="sec-relatorio" style="display:none">
-      <div class="sec-header">
-        <div class="sec-title">Relatório</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <select class="date-input" id="rel-periodo" onchange="renderRelatorio()">
-            <option value="7">Últimos 7 dias</option>
-            <option value="15">Últimos 15 dias</option>
-            <option value="30" selected>Últimos 30 dias</option>
-            <option value="custom">Período personalizado</option>
-          </select>
-          <div id="rel-custom" style="display:none;gap:8px;align-items:center;">
-            <input type="date" class="date-input" id="rel-de">
-            <span style="font-size:12px;color:var(--text2)">até</span>
-            <input type="date" class="date-input" id="rel-ate">
-            <button class="btn btn-sm btn-primary" onclick="renderRelatorio()">Filtrar</button>
-          </div>
-          <button class="btn btn-green btn-sm" onclick="exportarRelatorioExcel()">Excel</button>
-        </div>
-      </div>
-      <div id="rel-conteudo"></div>
-    </div>
-
-    <!-- LOG DE AÇÕES -->
-    <div id="sec-log" style="display:none">
-      <div class="sec-header">
-        <div class="sec-title">Log de ações</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input type="date" class="date-input" id="log-data" onchange="renderLog()">
-          <select class="date-input" id="log-usuario" onchange="renderLog()" style="padding:7px 12px;">
-            <option value="">Todos os usuários</option>
-            <option>Jackson</option><option>Lucas</option><option>Luan</option>
-            <option>Amanda</option><option>Leonardo</option>
-          </select>
-        </div>
-      </div>
-      <div id="log-lista"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-    </div>
-</div>
-
   <div id="sub-descontos" class="sub-section"></div>
   <div id="sub-pagamentos" class="sub-section"></div>
+
+POR ENTREGADOR -->
+<div id="sec-historico" class="section">
+<div class="sec-header">
+<div class="sec-title">Histórico por entregador</div>
+</div>
+<div class="card">
+<div class="row2">
+<div class="field">
+<label>Entregador</label>
+<select id="hist-entregador" onchange="renderHistorico()"><option value="">Selecione...</option></select>
+</div>
+<div class="row2" style="gap:8px;">
+<div class="field"><label>De</label><input type="date" id="hist-de" onchange="renderHistorico()"></div>
+<div class="field"><label>Até</label><input type="date" id="hist-ate" onchange="renderHistorico()"></div>
+</div>
+</div>
+</div>
+<div id="hist-resumo"></div>
+<div id="hist-lista"></div>
+</div>
+
+<!-- REPASSE DE ESTABELECIMENTOS -->
+<div id="sec-repasse" class="section">
+<div class="sec-header">
+<div class="sec-title">Repasse de estabelecimentos</div>
+<div style="display:flex;gap:8px;align-items:center;">
+<input type="date" class="date-input" id="rep-de" onchange="renderRepasse()">
+<span style="font-size:12px;color:var(--text2)">até</span>
+<input type="date" class="date-input" id="rep-ate" onchange="renderRepasse()">
+</div>
+</div>
+<div class="aviso">Consolida registros de <strong>Não pagou estabelecimento</strong> e <strong>Estabelecimento sem troco</strong> por estabelecimento para facilitar o desconto no repasse semanal.</div>
+<div id="rep-resumo"></div>
+<div id="rep-lista"></div>
+</div>
+
+<!-- RELATÓRIO SEMANAL/MENSAL -->
+<div id="sec-relatorio" class="section">
+<div class="sec-header">
+<div class="sec-title">Relatório</div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+<select class="date-input" id="rel-periodo" onchange="renderRelatorio()">
+<option value="7">Últimos 7 dias</option>
+<option value="15">Últimos 15 dias</option>
+<option value="30" selected>Últimos 30 dias</option>
+<option value="custom">Período personalizado</option>
+</select>
+<div id="rel-custom" style="display:none;gap:8px;align-items:center;">
+<input type="date" class="date-input" id="rel-de">
+<span style="font-size:12px;color:var(--text2)">até</span>
+<input type="date" class="date-input" id="rel-ate">
+<button class="btn btn-sm btn-primary" onclick="renderRelatorio()">Filtrar</button>
+</div>
+<button class="btn btn-green btn-sm" onclick="exportarRelatorioExcel()">Excel</button>
+</div>
+</div>
+<div id="rel-conteudo"></div>
+</div>
+
+<!-- LOG DE AÇÕES -->
+<div id="sec-log" class="section">
+<div class="sec-header">
+<div class="sec-title">Log de ações</div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+<input type="date" class="date-input" id="log-data" onchange="renderLog()">
+<select class="date-input" id="log-usuario" onchange="renderLog()" style="padding:7px 12px;">
+<option value="">Todos os usuários</option>
+<option>Jackson</option><option>Lucas</option><option>Luan</option>
+<option>Amanda</option><option>Leonardo</option>
+</select>
+</div>
+</div>
+<div id="log-lista"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+</div>
+</div>
+
   </main>
 </div>
 
@@ -832,11 +832,7 @@ async function mostrarApp(){
   if(isAdmin()){carregarDia(todayStr()).then(()=>renderResumoTotal());}
   // Init: esconde todas as seções e mostra só o dashboard
   document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active');});
-  // Também esconde os que não usam class="section"
-  ['historico','repasse','relatorio','log'].forEach(id=>{
-    const el=document.getElementById('sec-'+id);
-    if(el)el.style.display='none';
-  });
+
   const dashEl=document.getElementById('sec-dashboard');
   if(dashEl){dashEl.classList.add('active');}
   // Marca o tab Dashboard como ativo
@@ -860,20 +856,12 @@ function showTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   // Hide all sections
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  // Also hide the non-.section ones (historico, repasse, relatorio, log)
-  ['historico','repasse','relatorio','log'].forEach(id=>{
-    const el=document.getElementById('sec-'+id);
-    if(el)el.style.display='none';
-  });
+
   if(btn)btn.classList.add('active');
   const target=document.getElementById('sec-'+name);
   if(target){
     // historico/repasse/relatorio/log don't have class="section", use style.display
-    if(['historico','repasse','relatorio','log'].includes(name)){
-      target.style.display='block';
-    } else {
-      target.classList.add('active');
-    }
+    target.classList.add('active');
   }
   // Limpa busca ao trocar de aba
   const buscaEl=document.getElementById('busca-pedido');
