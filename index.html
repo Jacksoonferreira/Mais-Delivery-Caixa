@@ -188,31 +188,11 @@ tr:hover td{background:#fafaf8;}
 .filtro-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;}
 .filtro-bar input{padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);}
 @media(max-width:700px){.row2,.row3,.resumo-inputs,.metrics3,.metrics4,.admin-grid-4,.dash-grid{grid-template-columns:1fr;}.main{padding:1rem;}.tab{padding:10px 12px;font-size:12px;}.resumo-linhas{padding:0 1rem;}.resumo-inputs{padding:1rem;}.ent-grid{grid-template-columns:1fr;}}
-/* READONLY: hide all action buttons */
-body.readonly .btn-primary:not(.readonly-allow),
-body.readonly .btn-green:not(.readonly-allow),
-body.readonly .btn-amber:not(.readonly-allow),
-body.readonly button[onclick*="lancar"],
-body.readonly button[onclick*="abrir"],
-body.readonly button[onclick*="fechar"],
-body.readonly button[onclick*="remover"],
-body.readonly button[onclick*="salvar"],
-body.readonly button[onclick*="exportar"],
-body.readonly input,
-body.readonly select,
-body.readonly textarea{
-  pointer-events:none!important;
-  opacity:0.4!important;
-}
-body.readonly .btn-primary,
-body.readonly .btn-green,
-body.readonly .btn-amber{display:none!important;}
-
 .sub-tab{padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;white-space:nowrap;}
 .sub-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
 .sub-tab:hover{color:var(--text1);}
 .sub-section{display:none;}
-.sub-section.active{display:block;min-height:200px;}
+.sub-section.active{display:block;}
 </style>
 </head>
 <body>
@@ -339,7 +319,7 @@ body.readonly .btn-amber{display:none!important;}
 
 
     <!-- HISTÓRICO POR ENTREGADOR -->
-    <div id="sec-historico">
+    <div id="sec-historico" class="section">
       <div class="sec-header">
         <div class="sec-title">Histórico por entregador</div>
       </div>
@@ -360,7 +340,7 @@ body.readonly .btn-amber{display:none!important;}
     </div>
 
     <!-- REPASSE DE ESTABELECIMENTOS -->
-    <div id="sec-repasse">
+    <div id="sec-repasse" class="section">
       <div class="sec-header">
         <div class="sec-title">Repasse de estabelecimentos</div>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -375,7 +355,7 @@ body.readonly .btn-amber{display:none!important;}
     </div>
 
     <!-- RELATÓRIO SEMANAL/MENSAL -->
-    <div id="sec-relatorio">
+    <div id="sec-relatorio" class="section">
       <div class="sec-header">
         <div class="sec-title">Relatório</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -398,7 +378,7 @@ body.readonly .btn-amber{display:none!important;}
     </div>
 
     <!-- LOG DE AÇÕES -->
-    <div id="sec-log">
+    <div id="sec-log" class="section">
       <div class="sec-header">
         <div class="sec-title">Log de ações</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -412,6 +392,9 @@ body.readonly .btn-amber{display:none!important;}
       </div>
       <div id="log-lista"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
+  <div id="sub-descontos" class="sub-section"></div>
+  <div id="sub-pagamentos" class="sub-section"></div>
+</div>
 
   </main>
 </div>
@@ -435,7 +418,7 @@ body.readonly .btn-amber{display:none!important;}
 </div>
 
 <!-- SEÇÃO PAGAMENTOS -->
-<div id="sec-pagamentos" style="max-width:1100px;margin:0 auto;padding:1.5rem;">
+<div id="sec-pagamentos" class="section" style="max-width:1100px;margin:0 auto;padding:1.5rem;">
   <div class="sec-header">
     <div class="sec-title">Pagamento dos entregadores</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -472,6 +455,152 @@ body.readonly .btn-amber{display:none!important;}
   <div id="desc-resumo"></div>
   <div id="desc-lista"></div>
 </div>
+
+<div id="sec-lancar" class="section">
+      <div id="lancar-bloqueio" style="display:none">
+        <div class="bloqueio-aviso">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
+            <div style="font-size:12px;color:var(--text2);">Abra seu turno antes de registrar ocorrências.</div>
+          </div>
+        </div>
+      </div>
+      <div id="lancar-form">
+        <div class="card">
+          <div class="card-title">Nova ocorrência</div>
+          <div class="row2">
+            <div class="field"><label>Data</label><input type="text" id="f-data" readonly></div>
+            <div class="field"><label>Hora</label><input type="text" id="f-hora" readonly></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Registrado por</label><input type="text" id="f-operador" readonly></div>
+            <div class="field"><label>Entregador</label><select id="f-entregador"><option value="">Selecione...</option></select></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Nº do pedido</label><input type="text" id="f-pedido" placeholder="Ex: 57131175"></div>
+            <div class="field"><label>Estabelecimento</label><input type="text" id="f-estab" placeholder="Nome do restaurante"></div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>Tipo de ocorrência</label>
+              <select id="f-tipo" onchange="atualizarDica()">
+                <option value="">Selecione...</option>
+                <optgroup label="— Débita do caixa —">
+                  <option value="din-cart">Era dinheiro → passou cartão</option>
+                  <option value="moeda">Negativo por moedas</option>
+                  <option value="perdeu">Entregador perdeu</option>
+                </optgroup>
+                <optgroup label="— Envelope —">
+                  <option value="pf-din">Pedido por fora pago em dinheiro</option>
+                  <option value="pf-cart">Pedido por fora pago no cartão</option>
+                  <option value="sem-troco">Estabelecimento sem troco</option>
+                  <option value="cart-din">Era cartão → passou dinheiro</option>
+                  <option value="nao-pagou">Esqueceu de pagar estabelecimento</option>
+                </optgroup>
+                <optgroup label="— Débito do entregador (não afeta caixa) —">
+                  <option value="esq-cobrar">Esqueceu de cobrar do cliente</option>
+                  <option value="danificou">Danificou o pedido</option>
+                  <option value="comprou">Comprou pedido</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="field"><label>Valor (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
+          </div>
+          <div class="dica" id="f-dica"></div>
+          <div id="f-danificou-extra" style="display:none;margin-bottom:12px;">
+            <div class="row2">
+              <div class="field" style="margin:0">
+                <label>Pedido foi refeito pelo estabelecimento?</label>
+                <select id="f-refeito" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
+                  <option value="false">Não</option><option value="true">Sim</option>
+                </select>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Cobrar do estabelecimento?</label>
+                <select id="f-cobrar-estab" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
+                  <option value="false">Não</option><option value="true">Sim — lançar no relatório</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="field"><label>Observação (opcional)</label><input type="text" id="f-obs" placeholder="Ex: detalhe da ocorrência"></div>
+          <button class="btn btn-primary" id="btn-lancar" onclick="lancar()">Registrar ocorrência</button>
+        </div>
+        <div class="card">
+          <div class="sec-header">
+            <div class="card-title" style="margin:0">Ocorrências de hoje</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" id="busca-pedido" placeholder="🔍 Buscar por pedido..." style="padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;width:200px;" oninput="buscarPorPedido()">
+              <span class="mono" id="lista-data-label" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+          </div>
+          <div style="margin-top:1rem" id="lista-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEU TURNO -->
+    <div id="sec-meu-turno" class="section">
+      <div class="sec-header"><div class="sec-title">Meu turno</div><span class="mono" id="turno-data-label" style="font-size:12px;color:var(--text3)"></span></div>
+      <div id="turno-status-wrap"></div>
+      <div id="turno-form-wrap"></div>
+    </div>
+
+    <!-- FECHAMENTO -->
+    <div id="sec-fechamento" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Fechamento do dia</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" class="date-input" id="fc-data" onchange="renderFechamento()">
+          <button class="btn btn-green btn-sm" onclick="exportarExcel()">Excel</button>
+          <button class="btn btn-blue btn-sm" onclick="exportarPDF()">PDF</button>
+        </div>
+      </div>
+      <div class="aviso">
+        <strong>Débita do caixa:</strong> Dinheiro→Cartão <span class="tag tag-deb">débita</span> Moedas <span class="tag tag-deb">débita</span> Entregador perdeu <span class="tag tag-deb">débita</span><br>
+        <strong>Envelope:</strong> Pedido fora (din.) <span class="tag tag-sep">env.</span> Estab. sem troco <span class="tag tag-sep">env.</span> Não pagou estab. <span class="tag tag-sep">env.</span>
+      </div>
+      <div class="resumo-geral">
+        <div class="resumo-header"><div class="resumo-header-left"><span class="resumo-dot"></span>Resumo total do dia — caixa</div></div>
+        <div class="resumo-inputs">
+          <div class="field" style="margin:0"><label>Valor inicial total (R$)</label><input type="number" id="fc-inicial" placeholder="Ex: 3650,00" step="0.01" min="0" oninput="salvarDia()"></div>
+          <div class="field" style="margin:0"><label>Valor final total (R$)</label><input type="number" id="fc-final" placeholder="Preencher ao fechar o dia" step="0.01" min="0" oninput="salvarDia()"></div>
+        </div>
+        <div class="resumo-linhas" id="resumo-total"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+      </div>
+      <div id="split-caixa-ent" style="margin-bottom:1rem;"></div>
+      <div class="admin-only">
+        <div class="admin-only-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Envelope — não afeta o caixa</div>
+        <div class="admin-only-body">
+          <div class="admin-grid-4" id="admin-metrics"></div>
+          <div class="admin-total-row" id="admin-total-row"></div>
+        </div>
+      </div>
+      <div class="sec-divider">Resumo dos entregadores do dia</div>
+      <div id="fc-ent-turno"></div>
+      <div class="sec-divider">Contador de ocorrências por entregador</div>
+      <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
+      <div class="sec-divider">Detalhamento por turno / operador</div>
+      <div id="fc-turnos"></div>
+      <div class="sec-divider">Todas as ocorrências do dia</div>
+      <div id="fc-ocorrencias"></div>
+    </div>
+
+    <!-- PEDIDOS POR FORA CARTÃO -->
+    <div id="sec-pf-cart" class="section">
+      <div class="sec-header">
+        <div class="sec-title">Pedidos por fora — Cartão</div>
+        <input type="date" class="date-input" id="pfc-data" onchange="renderPfCart()">
+      </div>
+      <div class="pf-cart-section">
+        <div class="pf-cart-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg> Total acumulado — Pedidos por fora pagos no cartão</div>
+        <div class="pf-cart-body"><div id="pfc-total-box"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
+      </div>
+      <div class="sec-divider">Detalhamento</div>
+      <div id="pfc-lista"></div>
+    </div>
+
 
 <!-- MODAL VALES -->
 <div class="modal-overlay" id="modal-vales">
@@ -616,9 +745,8 @@ const nowTimeShort=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minut
 const nowTimeFull=()=>brDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const fmtDate=d=>d?d.split('-').reverse().join('/'):'—';
 const fmt=v=>'R$ '+Math.abs(parseFloat(v)||0).toFixed(2).replace('.',',');
-const isAdmin=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='readonly');
-const isAdminOrReadOnly=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='readonly');
-const canCad=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='operador_cad'||currentUser.role==='readonly');
+const isAdmin=()=>currentUser&&currentUser.role==='admin';
+const canCad=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='operador_cad');
 const turnoAberto=()=>meuTurnoAtual&&meuTurnoAtual.status==='aberto';
 const podeAgir=()=>isAdmin()||turnoAberto();
 const isReadOnly=()=>currentUser?.role==='readonly';
@@ -648,20 +776,11 @@ function logout(){
 function buildNav(){
   const nav=document.getElementById('main-nav');
   let h='';
-  // Readonly: vê tudo mas não pode alterar
+  // Readonly: só dashboard e histórico de caixa
   if(isReadOnly()){
     nav.innerHTML=`
       <button class="tab active" onclick="showTab('dashboard',this)">Dashboard</button>
-      <button class="tab" onclick="showTab('ent-hub',this)">Entregadores</button>
-      <button class="tab" onclick="showTab('lancar',this)">Lançar ocorrência</button>
-      <button class="tab" onclick="showTab('meu-turno',this)">Meu turno</button>
-      <button class="tab" onclick="showTab('fechamento',this)">Fechamento do dia</button>
-      <button class="tab" onclick="showTab('pf-cart',this)">Pedidos fora (cartão)</button>
-      <button class="tab" onclick="showTab('repasse',this)">Repasse</button>
-      <button class="tab" onclick="showTab('hist-caixa',this)">Hist. caixa</button>
-      <button class="tab" onclick="showTab('historico',this)">Histórico</button>
-      <button class="tab" onclick="showTab('relatorio',this)">Relatório</button>
-      <button class="tab" onclick="showTab('log',this)">Log</button>`;
+      <button class="tab" onclick="showTab('hist-caixa',this)">Histórico de caixa</button>`;
     return;
   }
   h+=`<button class="tab" onclick="showTab('dashboard',this)">Dashboard</button>`;
@@ -699,9 +818,6 @@ async function mostrarApp(){
   document.getElementById('dash-data').value=todayStr();
   document.getElementById('log-data').value=todayStr();
   buildNav();
-  // Apply readonly mode
-  if(isReadOnly()){document.body.classList.add('readonly');}
-  else{document.body.classList.remove('readonly');}
   const tick=()=>{
     document.getElementById('header-clock').textContent=brDate().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+' • '+nowTimeFull();
     updateRO();
@@ -714,14 +830,6 @@ async function mostrarApp(){
   renderCtrlEnt();
   renderDashboard();
   if(isAdmin()){carregarDia(todayStr()).then(()=>renderResumoTotal());}
-  // Init: hide all sections, show only dashboard
-  ['ent-hub','lancar','meu-turno','fechamento','pf-cart','repasse',
-   'hist-caixa','historico','relatorio','log','pagamentos','descontos'].forEach(id=>{
-    const el=document.getElementById('sec-'+id);
-    if(el)el.style.display='none';
-  });
-  const dashEl=document.getElementById('sec-dashboard');
-  if(dashEl)dashEl.style.display='block';
 }
 
 async function checkOnline(){
@@ -735,22 +843,11 @@ function toast(msg,tipo='ok'){
   el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800);
 }
 
-// All section IDs for show/hide
-const ALL_SECTIONS=['dashboard','ent-hub','lancar','meu-turno','fechamento','pf-cart',
-  'repasse','hist-caixa','historico','relatorio','log','pagamentos','descontos',
-  'entregadores','historico','ctrl-ent','meu-turno'];
-
 function showTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  // Hide all known sections by ID
-  ['dashboard','ent-hub','lancar','meu-turno','fechamento','pf-cart','repasse',
-   'hist-caixa','historico','relatorio','log','pagamentos','descontos'].forEach(id=>{
-    const el=document.getElementById('sec-'+id);
-    if(el)el.style.display='none';
-  });
-  if(btn)btn.classList.add('active');
-  const target=document.getElementById('sec-'+name);
-  if(target)target.style.display='block';
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sec-'+name).classList.add('active');
   // Limpa busca ao trocar de aba
   const buscaEl=document.getElementById('busca-pedido');
   if(buscaEl&&name!=='lancar'){buscaEl.value='';_allOcsCache=[];}
@@ -773,10 +870,7 @@ function showTab(name,btn){
   if(name==='relatorio')renderRelatorio();
   if(name==='log')renderLog();
   if(name==='descontos')renderDescontos();
-  if(name==='pagamentos'){
-    // Inject pagamentos into sub-pagamentos first, then render
-    renderPagamentos();
-  }
+  if(name==='pagamentos')renderPagamentos();
   if(name==='hist-caixa')renderHistCaixa();
   if(name==='lancar')atualizarBloqueioLancar();
 }
@@ -802,7 +896,7 @@ function atualizarBloqueioLancar(){
   const bloq=document.getElementById('lancar-bloqueio');
   const form=document.getElementById('lancar-form');
   if(!bloq||!form)return;
-  if(podeAgir()||isReadOnly()){bloq.style.display='none';form.style.display='block';}
+  if(podeAgir()){bloq.style.display='none';form.style.display='block';}
   else{bloq.style.display='block';form.style.display='none';}
 }
 
@@ -810,7 +904,7 @@ function atualizarBloqueioCtrl(){
   const bloq=document.getElementById('ctrl-bloqueio');
   const cont=document.getElementById('ctrl-content');
   if(!bloq||!cont)return;
-  if(podeAgir()||isReadOnly()){bloq.style.display='none';cont.style.display='block';}
+  if(podeAgir()){bloq.style.display='none';cont.style.display='block';}
   else{bloq.style.display='block';cont.style.display='none';}
 }
 
@@ -838,12 +932,10 @@ async function abrirAutomaticos(){
 }
 
 async function renderCtrlEnt(){
-  const dateEl=document.getElementById('ctrl-date-label');
-  if(dateEl)dateEl.textContent=`Período: ${fmtDate(periodStr())}`;
+  document.getElementById('ctrl-date-label').textContent=`Período: ${fmtDate(periodStr())}`;
   atualizarBloqueioCtrl();
-  if(!podeAgir()&&!isReadOnly())return;
+  if(!podeAgir())return;
   const el=document.getElementById('ent-grid');
-  if(!el)return;
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   // Abertura automática desativada — todos abrem manualmente
   // await abrirAutomaticos();
@@ -973,7 +1065,7 @@ async function confirmarAbrirEnt(){
   if(error){toast('Erro: '+error.message,'erro');return;}
   registrarLog(`Abriu entregador: ${ent} — Bag: ${bag||'—'} — Máq: ${maquina||'—'}`);
   fecharModal('modal-abrir-ent');toast(`${ent} aberto!`);renderCtrlEnt();
-  if(isAdmin()&&document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
+  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
 }
 
 function abrirEntregador(nome,bagCadastro,maquinaCadastro){
@@ -1006,7 +1098,7 @@ async function registrarDevolucao(id, nome){
   registrarLog(`Registrou devolução de ${nome} às ${hora}`);
   toast(`Devolução de ${nome} registrada!`);
   renderCtrlEnt();
-  if(isAdmin()&&document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
+  if(isAdmin()&&document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
 }
 
 async function reabrirEntregador(id,nome){
@@ -1157,7 +1249,6 @@ async function carregarEntregadoresSelect(){
 // CADASTRO
 async function renderEntregadores(){
   const el=document.getElementById('lista-entregadores');
-  if(!el)return;
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
   const{data}=await sb.from('entregadores').select('*').order('nome');
   if(!data||!data.length){el.innerHTML='<div class="empty">Nenhum entregador cadastrado.</div>';return;}
@@ -2520,7 +2611,7 @@ function togglePendentesDetalhe(){
 // ═══════════════════════════════════════════
 // PAGAMENTO DOS ENTREGADORES
 // ═══════════════════════════════════════════
-const podeEditarPag=()=>(currentUser?.role==='admin'||currentUser?.nome==='LEONARDO')&&!isReadOnly();
+const podeEditarPag=()=>isAdmin()||currentUser?.nome==='LEONARDO';
 
 function getSemanaAtual(){
   const d=brDate();
@@ -2554,9 +2645,10 @@ function getSemanaLabel(inicio,fim,fimDisplay){
 }
 
 async function renderPagamentos(){
-  // Always inject into sub-pagamentos when in hub
+  // Render into sub-pagamentos if inside hub, otherwise use sec-pagamentos
   const subPag=document.getElementById('sub-pagamentos');
-  if(subPag){
+  const inHub=subPag&&subPag.classList.contains('active');
+  if(inHub&&!subPag.querySelector('#pag-lista')){
     subPag.innerHTML=`<div style="max-width:1100px;margin:0 auto;padding:1.5rem;">
       <div class="sec-header">
         <div class="sec-title">Pagamento dos entregadores</div>
@@ -3296,13 +3388,9 @@ async function renderFechamentoEnt(){
 }
 
 function renderEntHub(){
-  ['dashboard','ent-hub','lancar','meu-turno','fechamento','pf-cart','repasse',
-   'hist-caixa','historico','relatorio','log','pagamentos','descontos'].forEach(id=>{
-    const el=document.getElementById('sec-'+id);
-    if(el)el.style.display='none';
-  });
-  const hub=document.getElementById('sec-ent-hub');
-  if(hub)hub.style.display='block';
+  // Ensure ent-hub is active and show default sub-tab
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-ent-hub').classList.add('active');
   showSubTab('ctrl-ent','sub-ctrl-ent');
 }
 
@@ -3312,22 +3400,22 @@ sb.channel('md-rt')
     if(!currentUser)return;
     renderLista();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
-    if(document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
-    if(isAdmin()&&document.getElementById('sec-fechamento')?.style.display!=='none')renderFechamento();
+    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
     if(isAdmin()&&document.getElementById('sec-pf-cart').classList.contains('active'))renderPfCart();
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'turnos'},()=>{
     if(!currentUser)return;
     carregarMeuTurno();
     if(document.getElementById('sec-meu-turno').classList.contains('active'))renderMeuTurno();
-    if(document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
-    if(isAdmin()&&document.getElementById('sec-fechamento')?.style.display!=='none')renderFechamento();
+    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'entregadores_turno'},()=>{
     if(!currentUser)return;
-    if(document.getElementById('sec-ent-hub')?.style.display!=='none'&&document.getElementById('sub-ctrl-ent')?.classList.contains('active'))renderCtrlEnt();
-    if(document.getElementById('sec-dashboard')?.style.display!=='none')renderDashboard();
-    if(isAdmin()&&document.getElementById('sec-fechamento')?.style.display!=='none')renderFechamento();
+    if(document.getElementById('sub-ctrl-ent')?.classList.contains('active')&&document.getElementById('sec-ent-hub')?.classList.contains('active'))renderCtrlEnt();
+    if(document.getElementById('sec-dashboard').classList.contains('active'))renderDashboard();
+    if(isAdmin()&&document.getElementById('sec-fechamento').classList.contains('active'))renderFechamento();
   })
   .subscribe();
 
@@ -3344,167 +3432,3 @@ if('serviceWorker' in navigator){
 </script>
 </body>
 </html>
-</div>
-  <div id="sub-descontos" class="sub-section"></div>
-  <div id="sub-pagamentos" class="sub-section"></div>
-</div>
-
-<div id="sec-lancar">
-      <div id="lancar-bloqueio" style="display:none">
-        <div class="bloqueio-aviso">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <div>
-            <div style="font-weight:600;color:var(--amber);margin-bottom:2px;">Turno não aberto</div>
-            <div style="font-size:12px;color:var(--text2);">Abra seu turno antes de registrar ocorrências.</div>
-          </div>
-        </div>
-      </div>
-      <div id="lancar-form">
-        <div class="card">
-          <div class="card-title">Nova ocorrência</div>
-          <div class="row2">
-            <div class="field"><label>Data</label><input type="text" id="f-data" readonly></div>
-            <div class="field"><label>Hora</label><input type="text" id="f-hora" readonly></div>
-          </div>
-          <div class="row2">
-            <div class="field"><label>Registrado por</label><input type="text" id="f-operador" readonly></div>
-            <div class="field"><label>Entregador</label><select id="f-entregador"><option value="">Selecione...</option></select></div>
-          </div>
-          <div class="row2">
-            <div class="field"><label>Nº do pedido</label><input type="text" id="f-pedido" placeholder="Ex: 57131175"></div>
-            <div class="field"><label>Estabelecimento</label><input type="text" id="f-estab" placeholder="Nome do restaurante"></div>
-          </div>
-          <div class="row2">
-            <div class="field">
-              <label>Tipo de ocorrência</label>
-              <select id="f-tipo" onchange="atualizarDica()">
-                <option value="">Selecione...</option>
-                <optgroup label="— Débita do caixa —">
-                  <option value="din-cart">Era dinheiro → passou cartão</option>
-                  <option value="moeda">Negativo por moedas</option>
-                  <option value="perdeu">Entregador perdeu</option>
-                </optgroup>
-                <optgroup label="— Envelope —">
-                  <option value="pf-din">Pedido por fora pago em dinheiro</option>
-                  <option value="pf-cart">Pedido por fora pago no cartão</option>
-                  <option value="sem-troco">Estabelecimento sem troco</option>
-                  <option value="cart-din">Era cartão → passou dinheiro</option>
-                  <option value="nao-pagou">Esqueceu de pagar estabelecimento</option>
-                </optgroup>
-                <optgroup label="— Débito do entregador (não afeta caixa) —">
-                  <option value="esq-cobrar">Esqueceu de cobrar do cliente</option>
-                  <option value="danificou">Danificou o pedido</option>
-                  <option value="comprou">Comprou pedido</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="field"><label>Valor (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
-          </div>
-          <div class="dica" id="f-dica"></div>
-          <div id="f-danificou-extra" style="display:none;margin-bottom:12px;">
-            <div class="row2">
-              <div class="field" style="margin:0">
-                <label>Pedido foi refeito pelo estabelecimento?</label>
-                <select id="f-refeito" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
-                  <option value="false">Não</option>
-                  <option value="true">Sim</option>
-                </select>
-              </div>
-              <div class="field" style="margin:0">
-                <label>Cobrar do estabelecimento?</label>
-                <select id="f-cobrar-estab" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
-                  <option value="false">Não</option>
-                  <option value="true">Sim — lançar no relatório</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="field"><label>Observação (opcional)</label><input type="text" id="f-obs" placeholder="Ex: detalhe da ocorrência"></div>
-          <button class="btn btn-primary" id="btn-lancar" onclick="lancar()">Registrar ocorrência</button>
-        </div>
-        <div class="card">
-          <div class="sec-header">
-            <div class="card-title" style="margin:0">Ocorrências de hoje</div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <input type="text" id="busca-pedido" placeholder="🔍 Buscar por pedido..." style="padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;width:200px;" oninput="buscarPorPedido()">
-              <span class="mono" id="lista-data-label" style="font-size:12px;color:var(--text3)"></span>
-            </div>
-          </div>
-          <div style="margin-top:1rem" id="lista-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MEU TURNO -->
-    <div id="sec-meu-turno">
-      <div class="sec-header"><div class="sec-title">Meu turno</div><span class="mono" id="turno-data-label" style="font-size:12px;color:var(--text3)"></span></div>
-      <div id="turno-status-wrap"></div>
-      <div id="turno-form-wrap"></div>
-    </div>
-
-    <!-- FECHAMENTO (admins) -->
-    <div id="sec-fechamento">
-      <div class="sec-header">
-        <div class="sec-title">Fechamento do dia</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input type="date" class="date-input" id="fc-data" onchange="renderFechamento()">
-          <button class="btn btn-green btn-sm" onclick="exportarExcel()">Excel</button>
-          <button class="btn btn-blue btn-sm" onclick="exportarPDF()">PDF</button>
-        </div>
-      </div>
-      <div class="aviso">
-        <strong>Débita do caixa:</strong> Dinheiro→Cartão <span class="tag tag-deb">débita</span> Moedas <span class="tag tag-deb">débita</span> Entregador perdeu <span class="tag tag-deb">débita</span><br>
-        <strong>Envelope (não afetam caixa):</strong> Pedido fora (din.) <span class="tag tag-sep">env.</span> Estab. sem troco <span class="tag tag-sep">env.</span> Cartão→Dinheiro <span class="tag tag-sep">env.</span> Não pagou estab. <span class="tag tag-sep">env.</span><br>
-        <strong>Aba exclusiva:</strong> Pedido fora (cartão) <span class="tag tag-pf">aba própria</span>
-      </div>
-      <div class="resumo-geral">
-        <div class="resumo-header">
-          <div class="resumo-header-left"><span class="resumo-dot"></span>Resumo total do dia — caixa</div>
-        </div>
-        <div class="resumo-inputs">
-          <div class="field" style="margin:0"><label>Valor inicial total (R$)</label><input type="number" id="fc-inicial" placeholder="Ex: 3650,00" step="0.01" min="0" oninput="salvarDia()"></div>
-          <div class="field" style="margin:0"><label>Valor final total (R$)</label><input type="number" id="fc-final" placeholder="Preencher ao fechar o dia" step="0.01" min="0" oninput="salvarDia()"></div>
-        </div>
-        <div class="resumo-linhas" id="resumo-total"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-      </div>
-      <div id="split-caixa-ent" style="margin-bottom:1rem;"></div>
-      <div class="admin-only">
-        <div class="admin-only-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Envelope — não afeta o caixa
-        </div>
-        <div class="admin-only-body">
-          <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Valores para controle — <strong>fazem parte do envelope</strong>:</p>
-          <div class="admin-grid-4" id="admin-metrics"></div>
-          <div class="admin-total-row" id="admin-total-row"></div>
-        </div>
-      </div>
-      <div class="sec-divider">Resumo dos entregadores do dia</div>
-      <div id="fc-ent-turno"></div>
-      <div class="sec-divider">Contador de ocorrências por entregador</div>
-      <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
-      <div class="sec-divider">Detalhamento por turno / operador</div>
-      <div id="fc-turnos"></div>
-      <div class="sec-divider">Todas as ocorrências do dia</div>
-      <div id="fc-ocorrencias"></div>
-    </div>
-
-    <!-- PEDIDOS POR FORA CARTÃO -->
-    <div id="sec-pf-cart">
-      <div class="sec-header">
-        <div class="sec-title">Pedidos por fora — Cartão</div>
-        <input type="date" class="date-input" id="pfc-data" onchange="renderPfCart()">
-      </div>
-      <div class="pf-cart-section">
-        <div class="pf-cart-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
-          Total acumulado — Pedidos por fora pagos no cartão
-        </div>
-        <div class="pf-cart-body"><div id="pfc-total-box"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
-      </div>
-      <div class="sec-divider">Detalhamento</div>
-      <div id="pfc-lista"></div>
-    </div>
-
-    <!-- CADASTRO ENTREGADORES -->
-    
