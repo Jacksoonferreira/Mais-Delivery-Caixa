@@ -486,7 +486,6 @@ POR ENTREGADOR -->
                 <input type="text" id="f-estab-busca" placeholder="🔍 Buscar estabelecimento..." 
                   autocomplete="off"
                   oninput="filtrarEstabs(this.value)"
-                  onfocus="mostrarDropEstab()"
                   onblur="setTimeout(()=>ocultarDropEstab(),200)"
                   style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;">
                 <div id="f-estab-drop" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-top:none;border-radius:0 0 var(--radius) var(--radius);z-index:50;box-shadow:var(--shadow);">
@@ -3802,6 +3801,8 @@ let _estabValorSelecionado = '';
 
 function filtrarEstabs(termo) {
   const drop = document.getElementById('f-estab-drop');
+  // Only show dropdown when user has typed something
+  if (termo.length === 0) { ocultarDropEstab(); return; }
   const lista = _estabSelectList.filter(e =>
     e.nome.toLowerCase().includes(termo.toLowerCase())
   );
@@ -3831,7 +3832,8 @@ function selecionarEstab(nome) {
 
 function mostrarDropEstab() {
   const busca = document.getElementById('f-estab-busca');
-  filtrarEstabs(busca ? busca.value : '');
+  const val = busca ? busca.value : '';
+  if (val.length > 0) filtrarEstabs(val);
 }
 
 function ocultarDropEstab() {
