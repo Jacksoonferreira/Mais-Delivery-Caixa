@@ -319,7 +319,7 @@ tr:hover td{background:#fafaf8;}
 
 
     <!-- HISTÓRICO POR ENTREGADOR -->
-    <div id="sec-historico" class="section">
+    <div id="sec-historico" style="display:none">
       <div class="sec-header">
         <div class="sec-title">Histórico por entregador</div>
       </div>
@@ -340,7 +340,7 @@ tr:hover td{background:#fafaf8;}
     </div>
 
     <!-- REPASSE DE ESTABELECIMENTOS -->
-    <div id="sec-repasse" class="section">
+    <div id="sec-repasse" style="display:none">
       <div class="sec-header">
         <div class="sec-title">Repasse de estabelecimentos</div>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -355,7 +355,7 @@ tr:hover td{background:#fafaf8;}
     </div>
 
     <!-- RELATÓRIO SEMANAL/MENSAL -->
-    <div id="sec-relatorio" class="section">
+    <div id="sec-relatorio" style="display:none">
       <div class="sec-header">
         <div class="sec-title">Relatório</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -378,7 +378,7 @@ tr:hover td{background:#fafaf8;}
     </div>
 
     <!-- LOG DE AÇÕES -->
-    <div id="sec-log" class="section">
+    <div id="sec-log" style="display:none">
       <div class="sec-header">
         <div class="sec-title">Log de ações</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -392,10 +392,10 @@ tr:hover td{background:#fafaf8;}
       </div>
       <div id="log-lista"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
-  <div id="sub-descontos" class="sub-section"></div>
-  <div id="sub-pagamentos" class="sub-section"></div>
 </div>
 
+  <div id="sub-descontos" class="sub-section"></div>
+  <div id="sub-pagamentos" class="sub-section"></div>
   </main>
 </div>
 
@@ -830,6 +830,19 @@ async function mostrarApp(){
   renderCtrlEnt();
   renderDashboard();
   if(isAdmin()){carregarDia(todayStr()).then(()=>renderResumoTotal());}
+  // Init: esconde todas as seções e mostra só o dashboard
+  document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active');});
+  // Também esconde os que não usam class="section"
+  ['historico','repasse','relatorio','log'].forEach(id=>{
+    const el=document.getElementById('sec-'+id);
+    if(el)el.style.display='none';
+  });
+  const dashEl=document.getElementById('sec-dashboard');
+  if(dashEl){dashEl.classList.add('active');}
+  // Marca o tab Dashboard como ativo
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.classList.toggle('active', t.textContent.trim()==='Dashboard');
+  });
 }
 
 async function checkOnline(){
@@ -845,9 +858,23 @@ function toast(msg,tipo='ok'){
 
 function showTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  // Hide all sections
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('sec-'+name).classList.add('active');
+  // Also hide the non-.section ones (historico, repasse, relatorio, log)
+  ['historico','repasse','relatorio','log'].forEach(id=>{
+    const el=document.getElementById('sec-'+id);
+    if(el)el.style.display='none';
+  });
+  if(btn)btn.classList.add('active');
+  const target=document.getElementById('sec-'+name);
+  if(target){
+    // historico/repasse/relatorio/log don't have class="section", use style.display
+    if(['historico','repasse','relatorio','log'].includes(name)){
+      target.style.display='block';
+    } else {
+      target.classList.add('active');
+    }
+  }
   // Limpa busca ao trocar de aba
   const buscaEl=document.getElementById('busca-pedido');
   if(buscaEl&&name!=='lancar'){buscaEl.value='';_allOcsCache=[];}
