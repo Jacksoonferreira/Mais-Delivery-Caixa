@@ -1450,10 +1450,10 @@ async function renderDashboard(){
   const totalSaidoPendente=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   const totalSaidoComEnt=totalSaidoAbertos+totalSaidoDevolveu+totalSaidoPendente;
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',periodo).maybeSingle();
-  // If no valor_inicial configured, use sum of all turno abertura values as fallback
-  const{data:turnosHoje2}=await sb.from('turnos').select('valor_abertura').eq('data',periodo);
-  const valorInicialTurnos=(turnosHoje2||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0),0);
-  const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):(valorInicialTurnos||null);
+  // If no valor_inicial configured, use only the OPEN turno valor_abertura as fallback
+  const{data:turnoAberto2}=await sb.from('turnos').select('valor_abertura').eq('data',periodo).eq('status','aberto').order('created_at',{ascending:false}).limit(1).maybeSingle();
+  const valorInicialFallback=turnoAberto2?.valor_abertura!=null?parseFloat(turnoAberto2.valor_abertura):null;
+  const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):valorInicialFallback;
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
   const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt+totalPendente:null;
 
@@ -1982,12 +1982,19 @@ async function renderFechamento(){
       <td class="mono" style="color:${c.pfcart>0?'var(--indigo)':'var(--text3)'}">${c.pfcart}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;}
-  // turnos operadores
+  // turnos operadores - pre-fetch débitos por data de cada turno
   const fcTurnos=document.getElementById('fc-turnos');
   if(!turnos||!turnos.length){fcTurnos.innerHTML='<div class="empty">Nenhum turno registrado.</div>';}
-  else{fcTurnos.innerHTML=turnos.map(t=>{
-    // All debits of the day affect the shared caixa
-    const deb=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+  else{
+    // Fetch débitos for each unique turno date
+    const datesNeeded=[...new Set(turnos.map(t=>t.data))];
+    const debPorData={};
+    for(const d of datesNeeded){
+      const{data:ocsD}=await sb.from('ocorrencias').select('tipo,valor').eq('data',d).in('tipo',DEBITA);
+      debPorData[d]=(ocsD||[]).reduce((s,o)=>s+parseFloat(o.valor),0);
+    }
+    fcTurnos.innerHTML=turnos.map(t=>{
+    const deb=debPorData[t.data]||0;
     const esperado=parseFloat(t.valor_abertura)-deb;
     const dif=t.valor_fechamento!=null?parseFloat(t.valor_fechamento)-esperado:null;
     return `<div class="turno-card">
@@ -1995,9 +2002,10 @@ async function renderFechamento(){
       <div class="turno-body">
         <div class="metrics3" style="margin-bottom:12px">
           <div class="metric"><div class="metric-val blue">${fmt(t.valor_abertura)}</div><div class="metric-lbl">Abertura</div></div>
-          <div class="metric"><div class="metric-val red">-${deb.toFixed(2).replace('.',',')}</div><div class="metric-lbl">Débitos</div></div>
+          <div class="metric"><div class="metric-val red">-${deb.toFixed(2).replace('.',',')}</div><div class="metric-lbl">Débitos do período</div></div>
           <div class="metric"><div class="metric-val ${esperado>=t.valor_abertura?'green':'red'}">${fmt(esperado)}</div><div class="metric-lbl">Deve voltar com</div></div>
         </div>
+        <div class="turno-row"><span class="turno-lbl">Data do período</span><span class="turno-val">${fmtDate(t.data)}</span></div>
         <div class="turno-row"><span class="turno-lbl">Horário de abertura</span><span class="turno-val">${t.hora_abertura}</span></div>
         <div class="turno-row"><span class="turno-lbl">Horário de fechamento</span><span class="turno-val">${t.hora_fechamento||'<span style="color:var(--text3)">Pendente</span>'}</span></div>
         <div class="turno-row"><span class="turno-lbl">Valor de fechamento</span><span class="turno-val">${t.valor_fechamento!=null?fmt(t.valor_fechamento):'<span style="color:var(--text3)">Pendente</span>'}</span></div>
