@@ -1450,7 +1450,10 @@ async function renderDashboard(){
   const totalSaidoPendente=entFechadosNaoDevolveu.reduce((s,t)=>s+parseFloat(t.valor_abertura||0)+parseFloat(t.complemento||0),0);
   const totalSaidoComEnt=totalSaidoAbertos+totalSaidoDevolveu+totalSaidoPendente;
   const{data:diaAtual}=await sb.from('caixa_dia').select('valor_inicial').eq('data',periodo).maybeSingle();
-  const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):null;
+  // If no valor_inicial configured, use sum of all turno abertura values as fallback
+  const{data:turnosHoje2}=await sb.from('turnos').select('valor_abertura').eq('data',periodo);
+  const valorInicialTurnos=(turnosHoje2||[]).reduce((s,t)=>s+parseFloat(t.valor_abertura||0),0);
+  const valorInicial=diaAtual?.valor_inicial!=null?parseFloat(diaAtual.valor_inicial):(valorInicialTurnos||null);
   const totalNoCaixa=valorInicial!=null?valorInicial-totalSaidoComEnt:null;
   const totalGeral=totalNoCaixa!=null?totalNoCaixa+totalComEnt+totalPendente:null;
 
@@ -1983,8 +1986,8 @@ async function renderFechamento(){
   const fcTurnos=document.getElementById('fc-turnos');
   if(!turnos||!turnos.length){fcTurnos.innerHTML='<div class="empty">Nenhum turno registrado.</div>';}
   else{fcTurnos.innerHTML=turnos.map(t=>{
-    const ocsOp=lista.filter(o=>o.registrado_por===t.operador);
-    const deb=ocsOp.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
+    // All debits of the day affect the shared caixa
+    const deb=lista.filter(o=>DEBITA.includes(o.tipo)).reduce((s,o)=>s+parseFloat(o.valor),0);
     const esperado=parseFloat(t.valor_abertura)-deb;
     const dif=t.valor_fechamento!=null?parseFloat(t.valor_fechamento)-esperado:null;
     return `<div class="turno-card">
@@ -3138,36 +3141,54 @@ async function confirmarVale(){
   const parcelas=parseInt(document.getElementById('vale-parcelas')?.value)||1;
   if(!desc){toast('Preencha a descrição.','erro');return;}
   if(isNaN(val)||val<=0){toast('Valor inválido.','erro');return;}
-  
+
+  console.log('confirmarVale debug:',{_valeNome,_valeSemana,desc,val,parcelas});
+
+  const btn=document.querySelector('#modal-vales .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+
   if(parcelas<=1){
-    // Single payment - original behavior
-    await sb.from('pagamentos_vales').insert({
-      entregador:_valeNome, semana:_valeSemana,
-      descricao:desc, valor:val,
-      parcelas_total:1, parcela_num:1, grupo_id:null
-    });
+    let {error,data}=await sb.from('pagamentos_vales').insert({
+      entregador:_valeNome,semana:_valeSemana,descricao:desc,valor:val,
+      parcelas_total:1,parcela_num:1,grupo_id:null
+    }).select();
+    console.log('insert result:',{error,data});
+    if(error&&error.message&&error.message.includes('column')){
+      // Columns not yet created — insert without them
+      const res=await sb.from('pagamentos_vales').insert({
+        entregador:_valeNome,semana:_valeSemana,descricao:desc,valor:val
+      });
+      error=res.error;
+    }
+    if(error){if(btn){btn.disabled=false;btn.textContent='Adicionar';}toast('Erro: '+error.message,'erro');return;}
     toast('Vale adicionado!');
   } else {
-    // Installment plan - create one record per week
-    const valorParcela = parseFloat((val/parcelas).toFixed(2));
-    const grupoId = Date.now(); // unique group identifier
-    const records = [];
-    for(let i=0; i<parcelas; i++){
-      const semana = getSemanaOffset(i);
+    // Installment plan
+    const valorParcela=parseFloat((val/parcelas).toFixed(2));
+    const grupoId=Date.now();
+    const records=[];
+    for(let i=0;i<parcelas;i++){
       records.push({
-        entregador:_valeNome,
-        semana:semana,
-        descricao:desc,
-        valor:valorParcela,
-        parcelas_total:parcelas,
-        parcela_num:i+1,
-        grupo_id:grupoId
+        entregador:_valeNome,semana:getSemanaOffset(i),
+        descricao:desc,valor:valorParcela,
+        parcelas_total:parcelas,parcela_num:i+1,grupo_id:grupoId
       });
     }
-    const {error} = await sb.from('pagamentos_vales').insert(records);
-    if(error){toast('Erro: '+error.message,'erro');return;}
+    let {error}=await sb.from('pagamentos_vales').insert(records);
+    if(error&&error.message&&error.message.includes('column')){
+      // Fallback without extra columns
+      const simpleRecords=records.map(r=>({
+        entregador:r.entregador,semana:r.semana,
+        descricao:r.descricao+` (Parcela ${r.parcela_num}/${r.parcelas_total})`,
+        valor:r.valor
+      }));
+      const res=await sb.from('pagamentos_vales').insert(simpleRecords);
+      error=res.error;
+    }
+    if(error){if(btn){btn.disabled=false;btn.textContent='Adicionar';}toast('Erro: '+error.message,'erro');return;}
     toast(`Vale parcelado em ${parcelas}x de ${fmt(valorParcela)} criado!`);
   }
+  if(btn){btn.disabled=false;btn.textContent='Adicionar';}
   fecharModal('modal-vales');
   renderPagamentos();
 }
@@ -4008,21 +4029,16 @@ async function removerEstabelecimento(id, nome) {
 // VALE PARCELADO
 // ═══════════════════════════════════════════
 function getSemanaOffset(offsetSemanas) {
-  // Returns semana string N weeks from current semana
+  // Returns semana string N weeks from current semana, same format as renderPagamentos
   const {inicio} = getSemanaAtual();
   const base = new Date(inicio + 'T12:00:00');
   base.setDate(base.getDate() + (offsetSemanas * 7));
-  const dataStr = base.getFullYear() + '-' + 
-    String(base.getMonth()+1).padStart(2,'0') + '-' + 
-    String(base.getDate()).padStart(2,'0');
-  // Get the semana string for that date
-  const d = new Date(dataStr + 'T12:00:00');
-  const dia = d.getDay();
-  const diff = dia===0 ? -6 : 1-dia;
-  const seg = new Date(d); seg.setDate(d.getDate()+diff);
-  const dom = new Date(seg); dom.setDate(seg.getDate()+6);
-  const f2 = x => String(x.getDate()).padStart(2,'0') + '/' + String(x.getMonth()+1).padStart(2,'0');
-  return f2(seg) + ' a ' + f2(dom) + '/' + dom.getFullYear();
+  // base is now a Monday. Get the domingo (Sunday) = base + 6 days
+  const dom = new Date(base); dom.setDate(base.getDate() + 6);
+  // Format as fmtDate does: DD/MM/YYYY
+  const fmtD = x => String(x.getDate()).padStart(2,'0') + '/' + 
+    String(x.getMonth()+1).padStart(2,'0') + '/' + x.getFullYear();
+  return fmtD(base) + ' a ' + fmtD(dom);
 }
 
 function atualizarPreviewParcelas() {
