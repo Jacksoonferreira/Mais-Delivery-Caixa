@@ -657,24 +657,24 @@ POR ENTREGADOR -->
 
 <!-- MODAL VALES -->
 <div class="modal-overlay" id="modal-vales">
-  <div class="modal" style="max-width:360px;">
+  <div class="modal" style="max-width:400px;">
     <div class="modal-title">Adicionar vale / débito</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
-      <button class="btn" onclick="selecionarVale('Adiantamento',0)"
-        style="background:#fef2f2;border:1.5px solid #fca5a5;color:var(--red);font-weight:600;padding:12px;font-size:14px;">
-        💵 Adiantamento (preencha o valor)
-      </button>
-      <button class="btn" onclick="selecionarVale('Capa de chuva',0)"
-        style="background:#fef2f2;border:1.5px solid #fca5a5;color:var(--red);font-weight:600;padding:12px;font-size:14px;">
-        🧥 Capa de chuva (preencha o valor)
-      </button>
+      <button class="btn" onclick="selecionarVale('Adiantamento',0)" style="background:#fef2f2;border:1.5px solid #fca5a5;color:var(--red);font-weight:600;padding:12px;font-size:14px;">💵 Adiantamento</button>
+      <button class="btn" onclick="selecionarVale('Capa de chuva',0)" style="background:#fef2f2;border:1.5px solid #fca5a5;color:var(--red);font-weight:600;padding:12px;font-size:14px;">🧥 Capa de chuva</button>
       <div style="border-top:1px solid var(--border);padding-top:10px;">
         <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Descrição:</label>
-        <input type="text" id="vale-outros-desc" placeholder="Ex: Adiantamento, Capa de chuva..."
-          style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px;">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Valor (R$):</label>
-        <input type="number" id="vale-outros-val" placeholder="0,00" step="0.01" min="0"
-          style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Mono',monospace;">
+        <input type="text" id="vale-outros-desc" placeholder="Ex: Adiantamento, Equipamento..." style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Valor total (R$):</label>
+        <input type="number" id="vale-outros-val" placeholder="0,00" step="0.01" min="0" oninput="atualizarPreviewParcelas()" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:'DM Mono',monospace;margin-bottom:12px;">
+        <div style="border-top:1px solid var(--border);padding-top:10px;">
+          <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Parcelar em quantas semanas?</label>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="number" id="vale-parcelas" value="1" min="1" max="26" step="1" oninput="atualizarPreviewParcelas()" style="width:80px;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:'DM Mono',monospace;font-weight:600;">
+            <span style="font-size:13px;color:var(--text2);">semana(s)</span>
+          </div>
+          <div id="vale-preview-parcelas" style="margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius);font-size:13px;display:none;"></div>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -2488,7 +2488,7 @@ async function renderDescontos(){
         <span style="font-weight:600;font-size:15px;">${nome}</span>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-family:'DM Mono',monospace;font-weight:600;font-size:18px;color:var(--red);">${fmt(dados.total)}</span>
-          ${statusFiltro==='pendente'&&isAdmin()?`<button class="btn btn-sm btn-green" onclick="marcarDescontado('${nome.replace(/'/g,"\'")}')">✓ Marcar descontado</button>`:''}
+          
         </div>
       </div>
       <div class="table-wrap"><table>
@@ -2912,7 +2912,10 @@ async function renderPagamentos(){
         <div id="vales-${nome.replace(/\s/g,'_')}">
           ${(vals||[]).length?(vals||[]).map(v=>`
             <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--radius);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span style="font-size:13px;">${v.descricao}</span>
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-size:13px;font-weight:500;">${v.descricao}</span>
+                ${(v.parcelas_total&&v.parcelas_total>1)?`<span style="font-size:11px;color:var(--amber);font-weight:600;">📅 Parcela ${v.parcela_num}/${v.parcelas_total}</span>`:''}
+              </div>
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--red);">-${fmt(v.valor)}</span>
                 ${podeEditarPag()&&!pago?`<button class="btn btn-sm" style="font-size:11px;" onclick="removerVale(${v.id},'${nome.replace(/\s/g,'_')}')">✕</button>`:''}
@@ -3123,16 +3126,49 @@ async function adicionarVale(nome,semana,key){
 }
 function selecionarVale(desc,val){
   document.getElementById('vale-outros-desc').value=desc;
-  document.getElementById('vale-outros-val').value=val;
+  document.getElementById('vale-outros-val').value=val||'';
+  const parcelasEl=document.getElementById('vale-parcelas');
+  if(parcelasEl)parcelasEl.value=1;
+  const preview=document.getElementById('vale-preview-parcelas');
+  if(preview)preview.style.display='none';
 }
 async function confirmarVale(){
   const desc=document.getElementById('vale-outros-desc').value.trim();
   const val=parseFloat(document.getElementById('vale-outros-val').value);
+  const parcelas=parseInt(document.getElementById('vale-parcelas')?.value)||1;
   if(!desc){toast('Preencha a descrição.','erro');return;}
   if(isNaN(val)||val<=0){toast('Valor inválido.','erro');return;}
-  await sb.from('pagamentos_vales').insert({entregador:_valeNome,semana:_valeSemana,descricao:desc,valor:val});
+  
+  if(parcelas<=1){
+    // Single payment - original behavior
+    await sb.from('pagamentos_vales').insert({
+      entregador:_valeNome, semana:_valeSemana,
+      descricao:desc, valor:val,
+      parcelas_total:1, parcela_num:1, grupo_id:null
+    });
+    toast('Vale adicionado!');
+  } else {
+    // Installment plan - create one record per week
+    const valorParcela = parseFloat((val/parcelas).toFixed(2));
+    const grupoId = Date.now(); // unique group identifier
+    const records = [];
+    for(let i=0; i<parcelas; i++){
+      const semana = getSemanaOffset(i);
+      records.push({
+        entregador:_valeNome,
+        semana:semana,
+        descricao:desc,
+        valor:valorParcela,
+        parcelas_total:parcelas,
+        parcela_num:i+1,
+        grupo_id:grupoId
+      });
+    }
+    const {error} = await sb.from('pagamentos_vales').insert(records);
+    if(error){toast('Erro: '+error.message,'erro');return;}
+    toast(`Vale parcelado em ${parcelas}x de ${fmt(valorParcela)} criado!`);
+  }
   fecharModal('modal-vales');
-  toast('Vale adicionado!');
   renderPagamentos();
 }
 async function removerVale(id,key){
@@ -3965,6 +4001,51 @@ async function removerEstabelecimento(id, nome) {
   toast('Removido.');
   renderEstabelecimentos();
   carregarEstabSelect();
+}
+
+
+// ═══════════════════════════════════════════
+// VALE PARCELADO
+// ═══════════════════════════════════════════
+function getSemanaOffset(offsetSemanas) {
+  // Returns semana string N weeks from current semana
+  const {inicio} = getSemanaAtual();
+  const base = new Date(inicio + 'T12:00:00');
+  base.setDate(base.getDate() + (offsetSemanas * 7));
+  const dataStr = base.getFullYear() + '-' + 
+    String(base.getMonth()+1).padStart(2,'0') + '-' + 
+    String(base.getDate()).padStart(2,'0');
+  // Get the semana string for that date
+  const d = new Date(dataStr + 'T12:00:00');
+  const dia = d.getDay();
+  const diff = dia===0 ? -6 : 1-dia;
+  const seg = new Date(d); seg.setDate(d.getDate()+diff);
+  const dom = new Date(seg); dom.setDate(seg.getDate()+6);
+  const f2 = x => String(x.getDate()).padStart(2,'0') + '/' + String(x.getMonth()+1).padStart(2,'0');
+  return f2(seg) + ' a ' + f2(dom) + '/' + dom.getFullYear();
+}
+
+function atualizarPreviewParcelas() {
+  const val = parseFloat(document.getElementById('vale-outros-val')?.value) || 0;
+  const parcelas = parseInt(document.getElementById('vale-parcelas')?.value) || 1;
+  const preview = document.getElementById('vale-preview-parcelas');
+  if (!preview) return;
+  if (val <= 0 || parcelas <= 1) { preview.style.display='none'; return; }
+  const valorParcela = val / parcelas;
+  let html = `<div style="font-weight:600;color:var(--red);margin-bottom:8px;">
+    R$ ${val.toFixed(2).replace('.',',')} ÷ ${parcelas}x = <strong>R$ ${valorParcela.toFixed(2).replace('.',',')} / semana</strong>
+  </div>`;
+  html += '<div style="display:flex;flex-direction:column;gap:4px;">';
+  for (let i = 0; i < parcelas; i++) {
+    const semana = getSemanaOffset(i);
+    html += `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text2);">Parcela ${i+1}/${parcelas} — ${semana}</span>
+      <span style="font-family:'DM Mono',monospace;font-weight:600;">R$ ${valorParcela.toFixed(2).replace('.',',')}</span>
+    </div>`;
+  }
+  html += '</div>';
+  preview.innerHTML = html;
+  preview.style.display = 'block';
 }
 
 
