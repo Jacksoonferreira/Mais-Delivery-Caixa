@@ -298,6 +298,13 @@ tr:hover td{background:#fafaf8;}
 </div>
 
   <div id="sub-fechamento-ent" class="sub-section" style="max-width:960px;margin:0 auto;padding:1.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:18px;font-weight:600;letter-spacing:-.3px;">Fechamento de entregadores</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" class="date-input" id="fent-data" onchange="renderFechamentoEnt()">
+        <button class="btn btn-sm" onclick="document.getElementById('fent-data').value=periodStr();renderFechamentoEnt()">Hoje</button>
+      </div>
+    </div>
     <div id="fech-ent-content"></div>
   </div>
   <div id="sub-entregadores" class="sub-section">
@@ -590,8 +597,6 @@ POR ENTREGADOR -->
           <div class="admin-total-row" id="admin-total-row"></div>
         </div>
       </div>
-      <div class="sec-divider">Resumo dos entregadores do dia</div>
-      <div id="fc-ent-turno"></div>
       <div class="sec-divider">Contador de ocorrências por entregador</div>
       <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
       <div class="sec-divider">Detalhamento por turno / operador</div>
@@ -1926,39 +1931,9 @@ async function renderResumoTotal(){
 async function renderFechamento(){
   const filtro=document.getElementById('fc-data').value||periodStr();
   await carregarDia(filtro);await renderResumoTotal();
-  const{data:entTurnos}=await sb.from('entregadores_turno').select('*').eq('data',filtro).order('hora_abertura');
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
   const{data:allOcs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
   const lista=allOcs||[];
-  // resumo entregadores
-  const fcEnt=document.getElementById('fc-ent-turno');
-  if(!entTurnos||!entTurnos.length){fcEnt.innerHTML='<div class="empty">Nenhum entregador registrado para esta data.</div>';}
-  else{
-    const totalAbertos=(entTurnos||[]).filter(t=>t.status==='aberto').length;
-    const totalChuva=(entTurnos||[]).filter(t=>t.chuva).length;
-    fcEnt.innerHTML=`
-      <div class="metrics4" style="margin-bottom:1rem">
-        <div class="metric"><div class="metric-val blue">${entTurnos.length}</div><div class="metric-lbl">Total do dia</div></div>
-        <div class="metric"><div class="metric-val green">${entTurnos.filter(t=>t.status==='fechado').length}</div><div class="metric-lbl">Encerrados</div></div>
-        <div class="metric"><div class="metric-val amber">${totalAbertos}</div><div class="metric-lbl">Em rota</div></div>
-        <div class="metric"><div class="metric-val indigo">${totalChuva}</div><div class="metric-lbl">Rodaram na chuva</div></div>
-      </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Entregador</th><th>Bag</th><th>Máquina</th><th>Abertura</th><th>Fechamento</th><th>Saída</th><th>Compl.</th><th>Chuva</th><th>Status</th><th>Obs.</th></tr></thead>
-        <tbody>${entTurnos.map(t=>`<tr>
-          <td style="font-weight:500">${t.entregador}</td>
-          <td class="mono">${t.bag||'—'}</td>
-          <td class="mono">${t.maquina||'—'}</td>
-          <td class="mono">${t.hora_abertura}</td>
-          <td class="mono">${t.hora_fechamento||'—'}</td>
-          <td class="mono">${fmt(t.valor_abertura)}</td>
-          <td class="mono">${parseFloat(t.complemento||0)>0?fmt(t.complemento):'—'}</td>
-          <td>${t.chuva?'🌧️ Sim':'Não'}</td>
-          <td><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em rota':'Encerrado'}</span></td>
-          <td style="color:var(--text2);font-size:12px">${t.obs||'—'}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>`;
-  }
   // contador
   const wrap=document.getElementById('contador-wrap');
   const contagem={};
@@ -3511,30 +3486,46 @@ async function renderFechamentoEnt(){
   const el=document.getElementById('fech-ent-content');
   if(!el)return;
   el.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';
-  const filtro=periodStr();
+  // Inicializa o date input se estiver vazio
+  const dataInput=document.getElementById('fent-data');
+  if(dataInput&&!dataInput.value) dataInput.value=periodStr();
+  const filtro=dataInput?dataInput.value:periodStr();
   const{data:entTurnos}=await sb.from('entregadores_turno')
     .select('*').eq('data',filtro).order('hora_abertura');
   const todos=entTurnos||[];
-  if(!todos.length){el.innerHTML='<div class="empty">Nenhum registro hoje.</div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table>
-    <thead><tr>
-      <th>Entregador</th><th>Bag</th><th>Máquina</th>
-      <th>Abertura</th><th>Fechamento</th><th>Saída</th>
-      <th>Compl.</th><th>Chuva</th><th>Status</th><th>Obs.</th>
-    </tr></thead>
-    <tbody>${todos.map(t=>`<tr>
-      <td style="font-weight:600;">${t.entregador}</td>
-      <td class="mono">${t.bag||'—'}</td>
-      <td class="mono">${t.maquina||'—'}</td>
-      <td class="mono">${t.hora_abertura||'—'}</td>
-      <td class="mono">${t.hora_fechamento||'—'}</td>
-      <td class="mono">${fmt(t.valor_abertura||0)}</td>
-      <td class="mono">${t.complemento&&parseFloat(t.complemento)>0?'+'+fmt(t.complemento):'—'}</td>
-      <td>${t.chuva?'🌧️ Sim':'Não'}</td>
-      <td><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em rota':'Encerrado'}</span></td>
-      <td style="font-size:12px;color:var(--text2);">${t.obs||'—'}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
+  if(!todos.length){
+    el.innerHTML='<div class="empty">Nenhum registro para esta data.</div>';
+    return;
+  }
+  const totalEncerrados=todos.filter(t=>t.status==='fechado').length;
+  const totalEmRota=todos.filter(t=>t.status==='aberto').length;
+  const totalChuva=todos.filter(t=>t.chuva).length;
+  el.innerHTML=`
+    <div class="metrics4" style="margin-bottom:1rem">
+      <div class="metric"><div class="metric-val blue">${todos.length}</div><div class="metric-lbl">Total do dia</div></div>
+      <div class="metric"><div class="metric-val green">${totalEncerrados}</div><div class="metric-lbl">Encerrados</div></div>
+      <div class="metric"><div class="metric-val amber">${totalEmRota}</div><div class="metric-lbl">Em rota</div></div>
+      <div class="metric"><div class="metric-val indigo">${totalChuva}</div><div class="metric-lbl">Rodaram na chuva</div></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Entregador</th><th>Bag</th><th>Máquina</th>
+        <th>Abertura</th><th>Fechamento</th><th>Saída</th>
+        <th>Compl.</th><th>Chuva</th><th>Status</th><th>Obs.</th>
+      </tr></thead>
+      <tbody>${todos.map(t=>`<tr>
+        <td style="font-weight:600;">${t.entregador}</td>
+        <td class="mono">${t.bag||'—'}</td>
+        <td class="mono">${t.maquina||'—'}</td>
+        <td class="mono">${t.hora_abertura||'—'}</td>
+        <td class="mono">${t.hora_fechamento||'—'}</td>
+        <td class="mono">${fmt(t.valor_abertura||0)}</td>
+        <td class="mono">${t.complemento&&parseFloat(t.complemento)>0?'+'+fmt(t.complemento):'—'}</td>
+        <td>${t.chuva?'🌧️ Sim':'Não'}</td>
+        <td><span class="badge ${t.status==='aberto'?'badge-aberto':'badge-fechado'}">${t.status==='aberto'?'Em rota':'Encerrado'}</span></td>
+        <td style="font-size:12px;color:var(--text2);">${t.obs||'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
 }
 
 function renderEntHub(){
