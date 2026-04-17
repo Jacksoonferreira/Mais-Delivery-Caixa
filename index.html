@@ -597,8 +597,7 @@ POR ENTREGADOR -->
           <div class="admin-total-row" id="admin-total-row"></div>
         </div>
       </div>
-      <div class="sec-divider">Contador de ocorrências por entregador</div>
-      <div id="contador-wrap" class="card" style="margin-bottom:1rem"></div>
+
       <div class="sec-divider">Detalhamento por turno / operador</div>
       <div id="fc-turnos"></div>
       <div class="sec-divider">Todas as ocorrências do dia</div>
@@ -1934,29 +1933,7 @@ async function renderFechamento(){
   const{data:turnos}=await sb.from('turnos').select('*').eq('data',filtro).order('hora_abertura');
   const{data:allOcs}=await sb.from('ocorrencias').select('*').eq('data',filtro).order('created_at');
   const lista=allOcs||[];
-  // contador
-  const wrap=document.getElementById('contador-wrap');
-  const contagem={};
-  lista.forEach(o=>{
-    if(!contagem[o.entregador])contagem[o.entregador]={total:0,debita:0,envelope:0,pfcart:0};
-    contagem[o.entregador].total++;
-    if(DEBITA.includes(o.tipo))contagem[o.entregador].debita++;
-    else if(o.tipo===PF_CART)contagem[o.entregador].pfcart++;
-    else if(ENVELOPE_TIPOS.includes(o.tipo))contagem[o.entregador].envelope++;
-  });
-  const sorted=Object.entries(contagem).sort((a,b)=>b[1].total-a[1].total);
-  if(!sorted.length){wrap.innerHTML='<div class="empty">Nenhuma ocorrência para esta data.</div>';}
-  else{wrap.innerHTML=`<div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Entregador</th><th>Total</th><th>Débita caixa</th><th>Envelopes</th><th>Ped. fora (cart.)</th></tr></thead>
-    <tbody>${sorted.map(([nome,c],i)=>`<tr>
-      <td class="mono" style="color:var(--text3)">${i+1}</td>
-      <td style="font-weight:500">${nome}</td>
-      <td class="mono">${c.total}</td>
-      <td class="mono" style="color:${c.debita>0?'var(--red)':'var(--text3)'}">${c.debita}</td>
-      <td class="mono" style="color:${c.envelope>0?'var(--purple)':'var(--text3)'}">${c.envelope}</td>
-      <td class="mono" style="color:${c.pfcart>0?'var(--indigo)':'var(--text3)'}">${c.pfcart}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;}
+
   // turnos operadores - pre-fetch débitos por data de cada turno
   const fcTurnos=document.getElementById('fc-turnos');
   if(!turnos||!turnos.length){fcTurnos.innerHTML='<div class="empty">Nenhum turno registrado.</div>';}
