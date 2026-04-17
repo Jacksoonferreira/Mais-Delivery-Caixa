@@ -1791,18 +1791,22 @@ async function abrirTurno(){
   const{error}=await sb.from('turnos').insert({data,operador:currentUser.nome,hora_abertura:hora,valor_abertura:val,status:'aberto'});
   btn.disabled=false;
   if(error){toast('Erro: '+error.message,'erro');btn.textContent='Abrir turno agora';return;}
-  // Se for o primeiro turno do dia, define automaticamente o valor inicial do caixa
+  // Se for o primeiro turno do dia, define automaticamente o valor inicial e zera o valor final
   const{data:turnosHoje}=await sb.from('turnos').select('id').eq('data',data).order('created_at',{ascending:true});
   if(turnosHoje&&turnosHoje.length===1){
-    // É o primeiro — verifica se já tem valor_inicial definido
+    // É o primeiro — verifica se já tem registro do dia
     const{data:diaEx}=await sb.from('caixa_dia').select('id,valor_inicial').eq('data',data).maybeSingle();
     if(!diaEx){
-      await sb.from('caixa_dia').upsert({data,valor_inicial:val},{onConflict:'data'});
+      await sb.from('caixa_dia').upsert({data,valor_inicial:val,valor_final:null},{onConflict:'data'});
       toast('Turno aberto — valor inicial do caixa definido automaticamente!');
     } else {
+      // Já existe registro do dia (ex: aberto anteriormente) — zera o valor final e atualiza inicial se necessário
+      await sb.from('caixa_dia').upsert({data,valor_final:null},{onConflict:'data'});
       toast('Turno aberto!');
     }
   } else {
+    // Não é o primeiro turno do dia — zera o valor_final para aguardar o último fechamento
+    await sb.from('caixa_dia').upsert({data,valor_final:null},{onConflict:'data'});
     toast('Turno aberto!');
   }
   registrarLog(`Abriu turno — R$ ${val.toFixed(2)}`);
@@ -1816,10 +1820,24 @@ async function abrirTurno(){
 async function fecharTurno(id){
   const val=parseFloat(document.getElementById('tf-valor').value);
   if(isNaN(val)||val<0){toast('Informe o valor de fechamento.','erro');return;}
-  const{error}=await sb.from('turnos').update({hora_fechamento:nowTimeShort(),valor_fechamento:val,status:'fechado',data:todayStr()}).eq('id',id);
+  const data=todayStr();
+  const{error}=await sb.from('turnos').update({hora_fechamento:nowTimeShort(),valor_fechamento:val,status:'fechado',data}).eq('id',id);
   if(error){toast('Erro ao fechar.','erro');return;}
+  // Verificar se ainda há turnos abertos no dia
+  const{data:turnosAbertos}=await sb.from('turnos').select('id').eq('data',data).eq('status','aberto');
+  if(!turnosAbertos||turnosAbertos.length===0){
+    // Último turno do dia fechado — salvar valor_final automaticamente (sem sobrescrever se já preenchido manualmente)
+    const{data:diaAtual}=await sb.from('caixa_dia').select('id,valor_final').eq('data',data).maybeSingle();
+    if(!diaAtual?.valor_final){
+      await sb.from('caixa_dia').upsert({data,valor_final:val},{onConflict:'data'});
+      toast('Turno encerrado — valor final do caixa atualizado automaticamente!');
+    } else {
+      toast('Turno encerrado!');
+    }
+  } else {
+    toast('Turno encerrado!');
+  }
   registrarLog(`Encerrou turno — R$ ${val.toFixed(2)}`);
-  toast('Turno encerrado!');
   meuTurnoAtual=null;
   atualizarPillTurno();
   renderMeuTurno();
